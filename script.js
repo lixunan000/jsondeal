@@ -14,10 +14,15 @@ function initializeApp() {
     // 绑定格式化功能事件
     document.getElementById('formatExecute').addEventListener('click', formatJSON);
     document.getElementById('formatCopy').addEventListener('click', copyFormatResult);
+    document.getElementById('formatClear').addEventListener('click', clearFormatInput);
+    document.getElementById('formatDownload').addEventListener('click', downloadFormatResult);
     
     // 绑定对比功能事件
     document.getElementById('compareExecute').addEventListener('click', compareJSON);
     document.getElementById('compareClear').addEventListener('click', clearHighlights);
+    document.getElementById('compareClearAll').addEventListener('click', clearCompareInputs);
+    document.getElementById('compareLoadExample1').addEventListener('click', () => loadCompareExample(1));
+    document.getElementById('compareLoadExample2').addEventListener('click', () => loadCompareExample(2));
     
     // 绑定关闭按钮事件
     document.querySelectorAll('.close').forEach(closeBtn => {
@@ -70,7 +75,7 @@ function closeModal() {
 }
 
 // JSON格式化功能
-async function formatJSON() {
+function formatJSON() {
     const input = document.getElementById('formatInput').value.trim();
     const output = document.getElementById('formatOutput');
     const executeBtn = document.getElementById('formatExecute');
@@ -85,43 +90,23 @@ async function formatJSON() {
     executeBtn.innerHTML = '<span class="loading"></span> 格式化中...';
     executeBtn.disabled = true;
     
-    try {
-        // 尝试在前端直接格式化
-        const parsed = JSON.parse(input);
-        const formatted = JSON.stringify(parsed, null, 4);
-        output.value = formatted;
-        showNotification('格式化成功！', 'success');
-    } catch (error) {
-        // 如果前端格式化失败，尝试调用后端API
+    // 使用setTimeout模拟异步操作，保持UI响应
+    setTimeout(() => {
         try {
-            const response = await fetch('/api/format', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ json_string: input })
-            });
-            
-            if (!response.ok) {
-                throw new Error('服务器错误');
-            }
-            
-            const result = await response.json();
-            if (result.success) {
-                output.value = result.formatted_json;
-                showNotification('格式化成功！', 'success');
-            } else {
-                throw new Error(result.error || '格式化失败');
-            }
-        } catch (apiError) {
+            // 在前端直接格式化
+            const parsed = JSON.parse(input);
+            const formatted = JSON.stringify(parsed, null, 4);
+            output.value = formatted;
+            showNotification('格式化成功！', 'success');
+        } catch (error) {
             showNotification('JSON格式错误，请检查输入', 'error');
-            console.error('Format error:', apiError);
+            console.error('Format error:', error);
+        } finally {
+            // 恢复按钮状态
+            executeBtn.textContent = originalText;
+            executeBtn.disabled = false;
         }
-    } finally {
-        // 恢复按钮状态
-        executeBtn.textContent = originalText;
-        executeBtn.disabled = false;
-    }
+    }, 100);
 }
 
 // 复制格式化结果
@@ -141,7 +126,7 @@ function copyFormatResult() {
 }
 
 // JSON对比功能
-async function compareJSON() {
+function compareJSON() {
     const input1 = document.getElementById('compareInput1').value.trim();
     const input2 = document.getElementById('compareInput2').value.trim();
     const executeBtn = document.getElementById('compareExecute');
@@ -156,44 +141,40 @@ async function compareJSON() {
     executeBtn.innerHTML = '<span class="loading"></span> 对比中...';
     executeBtn.disabled = true;
     
-    try {
-        // 先清除之前的高亮
-        clearHighlights();
-        
-        // 尝试调用后端API进行对比
-        const response = await fetch('/api/compare', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                json1: input1,
-                json2: input2
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('服务器错误');
-        }
-        
-        const result = await response.json();
-        if (result.success) {
+    // 使用setTimeout模拟异步操作
+    setTimeout(() => {
+        try {
+            // 先清除之前的高亮
+            clearHighlights();
+            
+            // 在前端直接对比JSON
+            const obj1 = JSON.parse(input1);
+            const obj2 = JSON.parse(input2);
+            
+            // 查找差异
+            const differences = findJSONDifferences(obj1, obj2);
+            
             // 在文本行上直接高亮显示差异
-            highlightDifferences(input1, input2, result.differences);
+            highlightDifferences(input1, input2, differences);
+            
             // 显示详细对比结果
-            displayComparisonResult(result.differences, result.summary);
+            const summary = {
+                total_differences: differences.length,
+                json1_keys: countKeys(obj1),
+                json2_keys: countKeys(obj2)
+            };
+            displayComparisonResult(differences, summary);
+            
             showNotification('对比完成，差异已高亮显示', 'success');
-        } else {
-            throw new Error(result.error || '对比失败');
+        } catch (error) {
+            console.error('Compare error:', error);
+            showNotification('对比失败，请检查JSON格式', 'error');
+        } finally {
+            // 恢复按钮状态
+            executeBtn.textContent = originalText;
+            executeBtn.disabled = false;
         }
-    } catch (error) {
-        console.error('Compare error:', error);
-        showNotification('对比失败，请检查JSON格式', 'error');
-    } finally {
-        // 恢复按钮状态
-        executeBtn.textContent = originalText;
-        executeBtn.disabled = false;
-    }
+    }, 100);
 }
 
 // 在文本行上高亮显示差异
@@ -587,6 +568,170 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// JSON对比核心函数 - 在前端查找JSON差异
+function findJSONDifferences(obj1, obj2, path = "") {
+    const differences = [];
+    
+    // 获取所有键的并集
+    const allKeys = new Set([
+        ...(typeof obj1 === 'object' && obj1 !== null ? Object.keys(obj1) : []),
+        ...(typeof obj2 === 'object' && obj2 !== null ? Object.keys(obj2) : [])
+    ]);
+    
+    for (const key of allKeys) {
+        const currentPath = path ? `${path}.${key}` : key;
+        
+        // 检查键是否存在
+        if (obj1 && !obj1.hasOwnProperty(key)) {
+            differences.push({
+                path: currentPath,
+                type: 'added',
+                value1: null,
+                value2: safeStringify(obj2[key])
+            });
+            continue;
+        }
+        
+        if (obj2 && !obj2.hasOwnProperty(key)) {
+            differences.push({
+                path: currentPath,
+                type: 'removed',
+                value1: safeStringify(obj1[key]),
+                value2: null
+            });
+            continue;
+        }
+        
+        // 获取值
+        const val1 = obj1[key];
+        const val2 = obj2[key];
+        
+        // 比较值
+        if (isObject(val1) && isObject(val2)) {
+            // 递归比较对象
+            differences.push(...findJSONDifferences(val1, val2, currentPath));
+        } else if (Array.isArray(val1) && Array.isArray(val2)) {
+            // 比较数组
+            const arrayDiffs = compareArrays(val1, val2, currentPath);
+            differences.push(...arrayDiffs);
+        } else {
+            // 比较基本类型
+            if (!deepEqual(val1, val2)) {
+                differences.push({
+                    path: currentPath,
+                    type: 'changed',
+                    value1: safeStringify(val1),
+                    value2: safeStringify(val2)
+                });
+            }
+        }
+    }
+    
+    return differences;
+}
+
+// 比较数组
+function compareArrays(arr1, arr2, path) {
+    const differences = [];
+    
+    // 检查长度差异
+    if (arr1.length !== arr2.length) {
+        differences.push({
+            path: path,
+            type: 'length_changed',
+            value1: `长度: ${arr1.length}`,
+            value2: `长度: ${arr2.length}`
+        });
+    }
+    
+    // 比较每个元素
+    const maxLen = Math.max(arr1.length, arr2.length);
+    for (let i = 0; i < maxLen; i++) {
+        const itemPath = `${path}[${i}]`;
+        
+        if (i >= arr1.length) {
+            differences.push({
+                path: itemPath,
+                type: 'added',
+                value1: null,
+                value2: safeStringify(arr2[i])
+            });
+        } else if (i >= arr2.length) {
+            differences.push({
+                path: itemPath,
+                type: 'removed',
+                value1: safeStringify(arr1[i]),
+                value2: null
+            });
+        } else {
+            // 递归比较元素
+            if (isObject(arr1[i]) && isObject(arr2[i])) {
+                differences.push(...findJSONDifferences(arr1[i], arr2[i], itemPath));
+            } else if (Array.isArray(arr1[i]) && Array.isArray(arr2[i])) {
+                differences.push(...compareArrays(arr1[i], arr2[i], itemPath));
+            } else if (!deepEqual(arr1[i], arr2[i])) {
+                differences.push({
+                    path: itemPath,
+                    type: 'changed',
+                    value1: safeStringify(arr1[i]),
+                    value2: safeStringify(arr2[i])
+                });
+            }
+        }
+    }
+    
+    return differences;
+}
+
+// 深度比较两个值是否相等
+function deepEqual(a, b) {
+    if (a === b) return true;
+    
+    if (typeof a !== typeof b) return false;
+    
+    if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) return false;
+        return a.every((item, index) => deepEqual(item, b[index]));
+    }
+    
+    if (isObject(a) && isObject(b)) {
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+        return keysA.every(key => deepEqual(a[key], b[key]));
+    }
+    
+    return false;
+}
+
+// 安全地序列化值
+function safeStringify(value) {
+    if (value === undefined || value === null) return null;
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
+}
+
+// 检查是否为对象
+function isObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+// 计算JSON对象的键数量
+function countKeys(obj) {
+    if (!obj || typeof obj !== 'object') return 0;
+    
+    let count = Object.keys(obj).length;
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            count += countKeys(obj[key]);
+        }
+    }
+    return count;
+}
+
 // 添加一些实用工具函数
 function isValidJSON(str) {
     try {
@@ -638,6 +783,73 @@ function loadExampleData() {
             this.value = exampleJSON2;
         }
     });
+}
+
+// 清空格式化输入
+function clearFormatInput() {
+    document.getElementById('formatInput').value = '';
+    document.getElementById('formatOutput').value = '';
+    showNotification('输入已清空', 'info');
+}
+
+// 下载格式化结果
+function downloadFormatResult() {
+    const output = document.getElementById('formatOutput').value;
+    if (!output) {
+        showNotification('没有内容可下载', 'warning');
+        return;
+    }
+    
+    const blob = new Blob([output], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'formatted.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification('文件已下载', 'success');
+}
+
+// 清空对比输入
+function clearCompareInputs() {
+    document.getElementById('compareInput1').value = '';
+    document.getElementById('compareInput2').value = '';
+    clearHighlights();
+    document.getElementById('compareResult').innerHTML = '';
+    showNotification('所有输入已清空', 'info');
+}
+
+// 加载对比示例
+function loadCompareExample(exampleNum) {
+    const example1 = `{
+    "name": "张三",
+    "age": 25,
+    "hobbies": ["篮球", "阅读", "编程"],
+    "address": {
+        "city": "北京",
+        "street": "朝阳区"
+    }
+}`;
+
+    const example2 = `{
+    "name": "李四",
+    "age": 30,
+    "hobbies": ["足球", "音乐"],
+    "address": {
+        "city": "上海",
+        "street": "浦东新区"
+    }
+}`;
+
+    if (exampleNum === 1) {
+        document.getElementById('compareInput1').value = example1;
+        showNotification('示例1已加载', 'success');
+    } else {
+        document.getElementById('compareInput2').value = example2;
+        showNotification('示例2已加载', 'success');
+    }
 }
 
 // 页面加载完成后调用示例数据加载

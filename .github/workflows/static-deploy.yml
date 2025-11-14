@@ -1,0 +1,63 @@
+name: Deploy Static Site
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Build static site
+      run: |
+        # 创建public目录用于部署
+        mkdir -p public
+        
+        # 复制所有静态文件
+        cp *.html public/ 2>/dev/null || true
+        cp *.css public/ 2>/dev/null || true
+        cp *.js public/ 2>/dev/null || true
+        cp *.json public/ 2>/dev/null || true
+        
+        # 复制静态资源目录
+        if [ -d "static" ]; then
+          cp -r static public/
+        fi
+        
+        # 确保index.html存在（重定向到静态版本）
+        if [ ! -f "public/index.html" ]; then
+          cat > public/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=index_static.html">
+    <title>JSON小工具</title>
+</head>
+<body>
+    <p>正在跳转到JSON小工具...</p>
+    <p><a href="index_static.html">点击这里直接访问</a></p>
+</body>
+</html>
+EOF
+        fi
+        
+        echo "静态站点构建完成"
+        ls -la public/
+        
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: public
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

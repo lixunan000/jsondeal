@@ -3,19 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON小工具</title>
+    <title>JSON小工具 - 纯前端版本</title>
+    <meta name="description" content="纯前端的JSON格式化和对比工具，无需服务器支持">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>JSON小工具</h1>
-            <p>提供JSON格式化和对比功能</p>
+            <p>纯前端JSON格式化和对比工具 - 无需服务器支持</p>
+            <div class="version-info">
+                <span class="badge">纯前端版本</span>
+                <span class="badge badge-success">离线可用</span>
+            </div>
         </header>
         
+        <div class="feature-intro">
+            <div class="feature-card">
+                <h3>🎯 功能特性</h3>
+                <ul>
+                    <li>✅ JSON格式化（美化输出）</li>
+                    <li>✅ JSON对比（找出差异）</li>
+                    <li>✅ 纯前端实现（无需网络）</li>
+                    <li>✅ 响应式设计</li>
+                    <li>✅ 支持中文字符</li>
+                </ul>
+            </div>
+        </div>
+        
         <div class="button-group">
-            <button id="formatBtn" class="btn btn-primary">JSON格式化</button>
-            <button id="compareBtn" class="btn btn-secondary">JSON对比</button>
+            <button id="formatBtn" class="btn btn-primary">
+                <span class="icon">📝</span>
+                JSON格式化
+            </button>
+            <button id="compareBtn" class="btn btn-secondary">
+                <span class="icon">🔍</span>
+                JSON对比
+            </button>
         </div>
 
         <!-- JSON格式化弹框 -->
@@ -30,12 +54,18 @@
                         <div class="panel">
                             <h3>输入</h3>
                             <textarea id="formatInput" placeholder="请输入JSON字符串..." class="json-textarea"></textarea>
-                            <button id="formatExecute" class="btn btn-primary">格式化</button>
+                            <div class="panel-actions">
+                                <button id="formatExecute" class="btn btn-primary">格式化</button>
+                                <button id="formatClear" class="btn btn-outline">清空</button>
+                            </div>
                         </div>
                         <div class="panel">
                             <h3>输出</h3>
                             <textarea id="formatOutput" placeholder="格式化后的JSON将显示在这里..." class="json-textarea" readonly></textarea>
-                            <button id="formatCopy" class="btn btn-secondary">复制</button>
+                            <div class="panel-actions">
+                                <button id="formatCopy" class="btn btn-secondary">复制</button>
+                                <button id="formatDownload" class="btn btn-outline">下载</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -57,6 +87,9 @@
                                 <textarea id="compareInput1" placeholder="请输入第一个JSON..." class="json-textarea"></textarea>
                                 <div id="compareHighlight1" class="highlight-overlay"></div>
                             </div>
+                            <div class="panel-actions">
+                                <button id="compareLoadExample1" class="btn btn-outline">加载示例</button>
+                            </div>
                         </div>
                         <div class="panel">
                             <h3>JSON 2</h3>
@@ -64,11 +97,15 @@
                                 <textarea id="compareInput2" placeholder="请输入第二个JSON..." class="json-textarea"></textarea>
                                 <div id="compareHighlight2" class="highlight-overlay"></div>
                             </div>
+                            <div class="panel-actions">
+                                <button id="compareLoadExample2" class="btn btn-outline">加载示例</button>
+                            </div>
                         </div>
                     </div>
                     <div class="compare-controls">
                         <button id="compareExecute" class="btn btn-primary">对比</button>
                         <button id="compareClear" class="btn btn-secondary">清除高亮</button>
+                        <button id="compareClearAll" class="btn btn-outline">清空所有</button>
                     </div>
                     <div class="compare-result">
                         <h3>对比结果详情</h3>
@@ -77,6 +114,10 @@
                 </div>
             </div>
         </div>
+        
+        <footer class="footer">
+            <p>© 2024 JSON小工具 - 纯前端版本 | 无需服务器，离线可用</p>
+        </footer>
     </div>
 
     <script src="script.js"></script>
