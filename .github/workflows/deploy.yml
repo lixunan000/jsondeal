@@ -6,16 +6,31 @@ on:
   pull_request:
     branches: [ main ]
 
+# 设置GITHUB_TOKEN权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 只允许一个并发部署
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
         
@@ -29,18 +44,14 @@ jobs:
         python -c "import flask; print('Flask installed successfully')"
         python -c "import json; print('JSON module available')"
         
-    - name: Create static deployment package
-      run: |
-        # 创建部署包，包含所有必要文件
-        mkdir -p deploy
-        cp -r *.py *.html *.js *.css *.json deploy/
-        cp -r static deploy/ 2>/dev/null || true
-        
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v1
+      uses: actions/upload-pages-artifact@v3
       with:
         path: .
         
     - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v1
-      if: github.ref == 'refs/heads/main'
+      id: deployment
+      uses: actions/deploy-pages@v4
