@@ -253,6 +253,11 @@ if not os.path.exists(static_dir):
 app.static_folder = '.'
 app.static_url_path = ''
 
+# GitHub Pages兼容性设置
+if os.environ.get('GITHUB_ACTIONS'):
+    # 在GitHub Actions环境中，使用不同的配置
+    app.config['SERVER_NAME'] = None
+
 if __name__ == '__main__':
     print("JSON小工具服务器启动中...")
     print("访问地址: http://localhost:7777")
@@ -263,4 +268,9 @@ if __name__ == '__main__':
     
     # 生产环境关闭debug模式
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(debug=debug_mode, host='0.0.0.0', port=7777)
+    
+    # 在GitHub Pages环境中，不启动Flask服务器
+    if not os.environ.get('GITHUB_ACTIONS'):
+        app.run(debug=debug_mode, host='0.0.0.0', port=7777)
+    else:
+        print("GitHub Pages环境检测到，跳过服务器启动")

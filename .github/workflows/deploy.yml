@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Test application
+      run: |
+        python -c "import flask; print('Flask installed successfully')"
+        python -c "import json; print('JSON module available')"
+        
+    - name: Create static deployment package
+      run: |
+        # 创建部署包，包含所有必要文件
+        mkdir -p deploy
+        cp -r *.py *.html *.js *.css *.json deploy/
+        cp -r static deploy/ 2>/dev/null || true
+        
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: .
+        
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v1
+      if: github.ref == 'refs/heads/main'

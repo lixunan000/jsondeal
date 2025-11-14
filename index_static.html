@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON小工具 - 静态版本</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JSON小工具</h1>
+            <p>提供JSON格式化和对比功能（静态版本）</p>
+            <p class="note">注意：此版本为静态版本，部分功能需要后端支持。完整功能请部署Flask版本。</p>
+        </header>
+        
+        <div class="button-group">
+            <button id="formatBtn" class="btn btn-primary">JSON格式化</button>
+            <button id="compareBtn" class="btn btn-secondary">JSON对比</button>
+        </div>
+
+        <!-- JSON格式化弹框 -->
+        <div id="formatModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>JSON格式化</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="input-output-container">
+                        <div class="panel">
+                            <h3>输入</h3>
+                            <textarea id="formatInput" placeholder="请输入JSON字符串..." class="json-textarea"></textarea>
+                            <button id="formatExecute" class="btn btn-primary">格式化</button>
+                        </div>
+                        <div class="panel">
+                            <h3>输出</h3>
+                            <textarea id="formatOutput" placeholder="格式化后的JSON将显示在这里..." class="json-textarea" readonly></textarea>
+                            <button id="formatCopy" class="btn btn-secondary">复制</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JSON对比弹框 -->
+        <div id="compareModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>JSON对比</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="input-output-container">
+                        <div class="panel">
+                            <h3>JSON 1</h3>
+                            <div class="textarea-container">
+                                <textarea id="compareInput1" placeholder="请输入第一个JSON..." class="json-textarea"></textarea>
+                                <div id="compareHighlight1" class="highlight-overlay"></div>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <h3>JSON 2</h3>
+                            <div class="textarea-container">
+                                <textarea id="compareInput2" placeholder="请输入第二个JSON..." class="json-textarea"></textarea>
+                                <div id="compareHighlight2" class="highlight-overlay"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="compare-controls">
+                        <button id="compareExecute" class="btn btn-primary">对比</button>
+                        <button id="compareClear" class="btn btn-secondary">清除高亮</button>
+                    </div>
+                    <div class="compare-result">
+                        <h3>对比结果详情</h3>
+                        <div id="compareResult" class="result-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 静态版本的JSON格式化功能
+        function formatJSON(jsonString) {
+            try {
+                const parsed = JSON.parse(jsonString);
+                return JSON.stringify(parsed, null, 4);
+            } catch (error) {
+                throw new Error('JSON格式错误: ' + error.message);
+            }
+        }
+
+        // 静态版本的JSON对比功能
+        function compareJSON(json1, json2) {
+            try {
+                const obj1 = JSON.parse(json1);
+                const obj2 = JSON.parse(json2);
+                
+                return {
+                    success: true,
+                    differences: findDifferences(obj1, obj2),
+                    summary: {
+                        total_differences: 0,
+                        json1_keys: countKeys(obj1),
+                        json2_keys: countKeys(obj2)
+                    }
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: 'JSON格式错误: ' + error.message
+                };
+            }
+        }
+
+        // 简化的差异查找函数
+        function findDifferences(obj1, obj2) {
+            const differences = [];
+            
+            function compareObjects(o1, o2, path = '') {
+                const keys = new Set([...Object.keys(o1 || {}), ...Object.keys(o2 || {})]);
+                
+                for (const key of keys) {
+                    const currentPath = path ? `${path}.${key}` : key;
+                    
+                    if (!(key in o1)) {
+                        differences.push({
+                            path: currentPath,
+                            type: 'added',
+                            value1: null,
+                            value2: JSON.stringify(o2[key])
+                        });
+                        continue;
+                    }
+                    
+                    if (!(key in o2)) {
+                        differences.push({
+                            path: currentPath,
+                            type: 'removed',
+                            value1: JSON.stringify(o1[key]),
+                            value2: null
+                        });
+                        continue;
+                    }
+                    
+                    const val1 = o1[key];
+                    const val2 = o2[key];
+                    
+                    if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+                        differences.push({
+                            path: currentPath,
+                            type: 'changed',
+                            value1: JSON.stringify(val1),
+                            value2: JSON.stringify(val2)
+                        });
+                    }
+                }
+            }
+            
+            compareObjects(obj1, obj2);
+            return differences;
+        }
+
+        function countKeys(obj) {
+            if (typeof obj !== 'object' || obj === null) return 0;
+            let count = Object.keys(obj).length;
+            for (const key in obj) {
+                count += countKeys(obj[key]);
+            }
+            return count;
+        }
+
+        // 事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 格式化功能
+            document.getElementById('formatExecute').addEventListener('click', function() {
+                const input = document.getElementById('formatInput').value;
+                try {
+                    const formatted = formatJSON(input);
+                    document.getElementById('formatOutput').value = formatted;
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
+
+            // 对比功能
+            document.getElementById('compareExecute').addEventListener('click', function() {
+                const json1 = document.getElementById('compareInput1').value;
+                const json2 = document.getElementById('compareInput2').value;
+                
+                const result = compareJSON(json1, json2);
+                
+                if (result.success) {
+                    const resultDiv = document.getElementById('compareResult');
+                    resultDiv.innerHTML = `
+                        <p>总共发现 ${result.differences.length} 处差异</p>
+                        <div class="differences">
+                            ${result.differences.map(diff => `
+                                <div class="difference-item ${diff.type}">
+                                    <strong>路径:</strong> ${diff.path}<br>
+                                    <strong>类型:</strong> ${diff.type}<br>
+                                    ${diff.value1 ? `<strong>原值:</strong> ${diff.value1}<br>` : ''}
+                                    ${diff.value2 ? `<strong>新值:</strong> ${diff.value2}` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    alert(result.error);
+                }
+            });
+
+            // 复制功能
+            document.getElementById('formatCopy').addEventListener('click', function() {
+                const output = document.getElementById('formatOutput');
+                output.select();
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            });
+
+            // 模态框控制
+            const modals = document.querySelectorAll('.modal');
+            const formatBtn = document.getElementById('formatBtn');
+            const compareBtn = document.getElementById('compareBtn');
+            const closeBtns = document.querySelectorAll('.close');
+
+            formatBtn.addEventListener('click', () => {
+                document.getElementById('formatModal').style.display = 'block';
+            });
+
+            compareBtn.addEventListener('click', () => {
+                document.getElementById('compareModal').style.display = 'block';
+            });
+
+            closeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modals.forEach(modal => {
+                        modal.style.display = 'none';
+                    });
+                });
+            });
+
+            window.addEventListener('click', (event) => {
+                modals.forEach(modal => {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
