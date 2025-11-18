@@ -264,8 +264,8 @@ header p {
     width: 100%;
     height: 300px;
     padding: 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
+    border: none;
+    border-radius: 0;
     font-family: 'Courier New', monospace;
     font-size: 14px;
     line-height: 21px; /* 固定行高，确保与高亮层一致 */
@@ -315,12 +315,39 @@ header p {
 .textarea-container {
     position: relative;
     width: 100%;
+    display: flex;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 行号样式 */
+.line-numbers {
+    width: 50px;
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 21px;
+    color: #6c757d;
+    text-align: right;
+    padding: 15px 8px;
+    user-select: none;
+    overflow: hidden;
+    white-space: pre;
+}
+
+.line-numbers div {
+    height: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 .highlight-overlay {
     position: absolute;
     top: 0;
-    left: 0;
+    left: 50px; /* 为行号区域留出空间 */
     right: 0;
     bottom: 0;
     pointer-events: none;
@@ -330,7 +357,7 @@ header p {
     white-space: pre;
     overflow: hidden;
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 0 8px 8px 0;
     z-index: 1;
 }
 

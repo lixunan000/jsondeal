@@ -4,6 +4,7 @@ let currentModal = null;
 // DOM 加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
+    initializeLineNumbers();
 });
 
 function initializeApp() {
@@ -56,12 +57,18 @@ function openModal(modalId) {
     if (modalId === 'formatModal') {
         document.getElementById('formatInput').value = '';
         document.getElementById('formatOutput').value = '';
+        // 更新行号显示
+        updateLineNumbers('formatInput');
+        updateLineNumbers('formatOutput');
     }
     // 如果是对比模态框，清空所有内容和高亮
     else if (modalId === 'compareModal') {
         document.getElementById('compareInput1').value = '';
         document.getElementById('compareInput2').value = '';
         clearHighlights();
+        // 更新行号显示
+        updateLineNumbers('compareInput1');
+        updateLineNumbers('compareInput2');
     }
 }
 
@@ -98,6 +105,9 @@ function formatJSON() {
             const formatted = JSON.stringify(parsed, null, 4);
             output.value = formatted;
             showNotification('格式化成功！', 'success');
+            
+            // 更新输出区域的行号
+            updateLineNumbers('formatOutput');
         } catch (error) {
             showNotification('JSON格式错误，请检查输入', 'error');
             console.error('Format error:', error);
@@ -300,27 +310,9 @@ function highlightKeyValueDifferences(lines, diffLineMap, diff, jsonType) {
             return;
         }
         
-        // 方法2：值匹配 - 只在特定情况下使用
-        if (diffValue && diff.type === 'added' && jsonType === 'json2') {
-            // 只有当是新增的值且在JSON 2中时才使用值匹配
-            const valueStr = typeof diffValue === 'string' ? 
-                `"${diffValue}"` : String(diffValue);
-            
-            // 检查行是否包含该值，并且该行包含一个键名（确保是键值对）
-            const valuePattern = new RegExp(`(^|\\s|,)${escapeRegExp(valueStr.replace(/"/g, ''))}(\\s|,|$)`);
-            if (valuePattern.test(line)) {
-                // 确保这一行包含一个键名（格式："key": value）
-                const keyValuePattern = /"[^"]+"\s*:/;
-                if (keyValuePattern.test(line)) {
-                    // 确保这个键名不是已经存在的键
-                    const existingKeyPattern = new RegExp(`\\"${lastKey}\\"\\s*:`);
-                    if (!existingKeyPattern.test(line)) {
-                        assignHighlightClass(diffLineMap, lineNumber, diff.type, jsonType);
-                        return;
-                    }
-                }
-            }
-        }
+        // 方法2：值匹配 - 只在特定情况下使用（已禁用，容易出错）
+        // 这个方法被禁用，因为它容易错误匹配相同值的不同键
+        // 例如："age": 30 和 "eee": 30 会互相干扰
         
         // 方法3：处理嵌套对象 - 检查路径中的父级键
         if (pathParts.length > 1) {
@@ -349,17 +341,20 @@ function assignHighlightClass(diffLineMap, lineNumber, diffType, jsonType) {
     
     switch (diffType) {
         case 'added':
+            // 新增的字段只在JSON2中显示为绿色
             if (jsonType === 'json2') {
                 highlightClass = 'highlight-added'; // 绿色：新增
             }
             break;
         case 'removed':
+            // 删除的字段只在JSON1中显示为红色
             if (jsonType === 'json1') {
                 highlightClass = 'highlight-removed'; // 红色：删除
             }
             break;
         case 'changed':
         case 'length_changed':
+            // 修改的字段在JSON1和JSON2中都显示为黄色
             highlightClass = 'highlight-changed'; // 黄色：修改
             break;
     }
@@ -473,17 +468,6 @@ function groupDifferencesByType(differences) {
     });
     
     return grouped;
-}
-
-// 获取差异类型文本
-function getDiffTypeText(type) {
-    const typeMap = {
-        'added': '新增',
-        'removed': '删除',
-        'changed': '修改',
-        'length_changed': '长度变化'
-    };
-    return typeMap[type] || type;
 }
 
 // HTML转义函数
@@ -732,64 +716,15 @@ function countKeys(obj) {
     return count;
 }
 
-// 添加一些实用工具函数
-function isValidJSON(str) {
-    try {
-        JSON.parse(str);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-// 示例JSON数据（用于演示）
-function loadExampleData() {
-    const exampleJSON = `{
-    "name": "张三",
-    "age": 25,
-    "hobbies": ["篮球", "阅读", "编程"],
-    "address": {
-        "city": "北京",
-        "street": "朝阳区"
-    }
-}`;
-    
-    // 为格式化输入框添加示例
-    document.getElementById('formatInput').addEventListener('focus', function() {
-        if (!this.value) {
-            this.value = exampleJSON;
-        }
-    });
-    
-    // 为对比输入框添加示例
-    const exampleJSON2 = `{
-    "name": "李四",
-    "age": 30,
-    "hobbies": ["足球", "音乐"],
-    "address": {
-        "city": "上海",
-        "street": "浦东新区"
-    }
-}`;
-    
-    document.getElementById('compareInput1').addEventListener('focus', function() {
-        if (!this.value) {
-            this.value = exampleJSON;
-        }
-    });
-    
-    document.getElementById('compareInput2').addEventListener('focus', function() {
-        if (!this.value) {
-            this.value = exampleJSON2;
-        }
-    });
-}
-
 // 清空格式化输入
 function clearFormatInput() {
     document.getElementById('formatInput').value = '';
     document.getElementById('formatOutput').value = '';
     showNotification('输入已清空', 'info');
+    
+    // 更新行号显示
+    updateLineNumbers('formatInput');
+    updateLineNumbers('formatOutput');
 }
 
 // 下载格式化结果
@@ -819,6 +754,10 @@ function clearCompareInputs() {
     clearHighlights();
     document.getElementById('compareResult').innerHTML = '';
     showNotification('所有输入已清空', 'info');
+    
+    // 更新行号显示
+    updateLineNumbers('compareInput1');
+    updateLineNumbers('compareInput2');
 }
 
 // 加载对比示例
@@ -846,11 +785,100 @@ function loadCompareExample(exampleNum) {
     if (exampleNum === 1) {
         document.getElementById('compareInput1').value = example1;
         showNotification('示例1已加载', 'success');
+        updateLineNumbers('compareInput1');
     } else {
         document.getElementById('compareInput2').value = example2;
         showNotification('示例2已加载', 'success');
+        updateLineNumbers('compareInput2');
     }
 }
 
-// 页面加载完成后调用示例数据加载
-window.addEventListener('load', loadExampleData);
+// 初始化行号功能
+function initializeLineNumbers() {
+    // 使用事件委托，监听整个文档的输入事件
+    document.addEventListener('input', function(e) {
+        const target = e.target;
+        const textareaId = target.id;
+        
+        // 检查是否是目标文本区域
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+            updateLineNumbers(textareaId);
+        }
+    });
+    
+    // 监听粘贴事件
+    document.addEventListener('paste', function(e) {
+        const target = e.target;
+        const textareaId = target.id;
+        
+        // 检查是否是目标文本区域
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+            // 使用setTimeout确保在粘贴内容后更新行号
+            setTimeout(() => {
+                updateLineNumbers(textareaId);
+            }, 10);
+        }
+    });
+    
+    // 监听滚动事件
+    document.addEventListener('scroll', function(e) {
+        const target = e.target;
+        const textareaId = target.id;
+        
+        // 检查是否是目标文本区域
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+            syncLineNumbers(textareaId);
+        }
+    }, true); // 使用捕获阶段确保能监听到
+    
+    // 初始更新所有文本区域的行号
+    updateAllLineNumbers();
+}
+
+// 更新所有文本区域的行号
+function updateAllLineNumbers() {
+    const textareas = ['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'];
+    textareas.forEach(id => {
+        updateLineNumbers(id);
+    });
+}
+
+// 更新行号显示
+function updateLineNumbers(textareaId) {
+    const textarea = document.getElementById(textareaId);
+    const lineNumbersId = textareaId + 'LineNumbers';
+    const lineNumbers = document.getElementById(lineNumbersId);
+    
+    if (!textarea || !lineNumbers) return;
+    
+    const content = textarea.value;
+    const lines = content.split('\n');
+    const lineCount = lines.length;
+    
+    // 生成行号HTML
+    let lineNumbersHtml = '';
+    for (let i = 1; i <= lineCount; i++) {
+        lineNumbersHtml += `<div>${i}</div>`;
+    }
+    
+    // 如果内容为空，至少显示一行
+    if (lineCount === 0) {
+        lineNumbersHtml = '<div>1</div>';
+    }
+    
+    lineNumbers.innerHTML = lineNumbersHtml;
+    
+    // 同步滚动
+    syncLineNumbers(textareaId);
+}
+
+// 同步文本区域和行号的滚动
+function syncLineNumbers(textareaId) {
+    const textarea = document.getElementById(textareaId);
+    const lineNumbersId = textareaId + 'LineNumbers';
+    const lineNumbers = document.getElementById(lineNumbersId);
+    
+    if (!textarea || !lineNumbers) return;
+    
+    lineNumbers.scrollTop = textarea.scrollTop;
+}

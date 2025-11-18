@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON小工具 - 纯前端版本</title>
+    <title>JSON小工具</title>
     <meta name="description" content="纯前端的JSON格式化和对比工具，无需服务器支持">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -36,7 +36,10 @@
                     <div class="input-output-container">
                         <div class="panel">
                             <h3>输入</h3>
-                            <textarea id="formatInput" placeholder="请输入JSON字符串..." class="json-textarea"></textarea>
+                            <div class="textarea-container">
+                                <div class="line-numbers" id="formatInputLineNumbers"></div>
+                                <textarea id="formatInput" placeholder="请输入JSON字符串..." class="json-textarea"></textarea>
+                            </div>
                             <div class="panel-actions">
                                 <button id="formatExecute" class="btn btn-primary">格式化</button>
                                 <button id="formatClear" class="btn btn-outline">清空</button>
@@ -44,7 +47,10 @@
                         </div>
                         <div class="panel">
                             <h3>输出</h3>
-                            <textarea id="formatOutput" placeholder="格式化后的JSON将显示在这里..." class="json-textarea" readonly></textarea>
+                            <div class="textarea-container">
+                                <div class="line-numbers" id="formatOutputLineNumbers"></div>
+                                <textarea id="formatOutput" placeholder="格式化后的JSON将显示在这里..." class="json-textarea" readonly></textarea>
+                            </div>
                             <div class="panel-actions">
                                 <button id="formatCopy" class="btn btn-secondary">复制</button>
                                 <button id="formatDownload" class="btn btn-outline">下载</button>
@@ -67,6 +73,7 @@
                         <div class="panel">
                             <h3>JSON 1</h3>
                             <div class="textarea-container">
+                                <div class="line-numbers" id="compareInput1LineNumbers"></div>
                                 <textarea id="compareInput1" placeholder="请输入第一个JSON..." class="json-textarea"></textarea>
                                 <div id="compareHighlight1" class="highlight-overlay"></div>
                             </div>
@@ -77,6 +84,7 @@
                         <div class="panel">
                             <h3>JSON 2</h3>
                             <div class="textarea-container">
+                                <div class="line-numbers" id="compareInput2LineNumbers"></div>
                                 <textarea id="compareInput2" placeholder="请输入第二个JSON..." class="json-textarea"></textarea>
                                 <div id="compareHighlight2" class="highlight-overlay"></div>
                             </div>

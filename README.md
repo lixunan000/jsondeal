@@ -1,136 +1,91 @@
 # JSON小工具
 
-一个基于Flask的JSON格式化和对比工具，支持GitHub Pages部署。
+一个纯前端的JSON格式化和对比工具，无需服务器支持，可直接在浏览器中运行。
 
-## 功能特性
+## ✨ 功能特性
 
-- ✅ JSON格式化（美化输出）
-- ✅ JSON对比（找出差异）
-- ✅ 响应式设计
-- ✅ 支持中文字符
-- ✅ 静态版本和动态版本
+- ✅ **JSON格式化** - 美化JSON输出，支持缩进和语法高亮
+- ✅ **JSON对比** - 智能比较两个JSON的差异，高亮显示不同之处
+- ✅ **行号显示** - 实时显示文本行号，支持滚动同步
+- ✅ **响应式设计** - 适配桌面和移动设备
+- ✅ **中文本地化** - 完整的中文界面和提示
+- ✅ **纯前端实现** - 无需后端服务器，数据不离开浏览器
 
-## 快速开始
+## 🚀 快速使用
 
-### 本地运行
+### 在线使用
+直接打开 `index.html` 文件即可使用，无需任何安装配置。
 
-1. 克隆项目
+### 本地部署
+1. 下载项目文件
+2. 使用任意HTTP服务器打开：
 ```bash
-git clone https://github.com/your-username/json-tools.git
-cd json-tools
+# 使用Python内置服务器
+python -m http.server 8000
+
+# 或使用Node.js http-server
+npx http-server
+
+# 或直接双击打开index.html文件
 ```
+3. 访问 http://localhost:8000
 
-2. 安装依赖
-```bash
-pip install -r requirements.txt
-```
-
-3. 启动应用
-```bash
-python app.py
-```
-
-4. 访问 http://localhost:7777
-
-### GitHub Pages部署
-
-1. Fork或创建新的GitHub仓库
-2. 上传所有项目文件到仓库
-3. 启用GitHub Pages：
-   - 进入仓库 Settings → Pages
-   - Source 选择 "GitHub Actions"
-4. 推送代码到main分支，自动部署
-
-访问地址：`https://your-username.github.io/json-tools`
-
-## 项目结构
+## 📁 项目结构
 
 ```
-json-tools/
-├── app.py                 # Flask主应用
-├── index.html            # 动态版本主页
-├── index_static.html     # 静态版本主页
-├── script.js             # 前端JavaScript
-├── style.css             # 样式文件
-├── requirements.txt       # Python依赖
-├── gunicorn_config.py    # Gunicorn配置
-├── wsgi.py               # WSGI入口
-├── .github/workflows/    # GitHub Actions
-│   └── deploy.yml        # 部署工作流
-└── static/               # 静态资源目录
+vscode_test_jsondeal/
+├── index.html          # 主页面
+├── script.js          # 核心JavaScript逻辑
+├── style.css          # 样式文件
+├── README.md          # 项目说明
+├── a.json             # 示例JSON文件
+└── 其他说明文档.md     # 部署和配置指南
 ```
 
-## API接口
+## 💡 使用说明
 
 ### JSON格式化
-- **端点**: `POST /api/format`
-- **参数**: `{ "json_string": "your json here" }`
-- **返回**: 格式化后的JSON
+1. 点击"JSON格式化"按钮
+2. 在左侧输入框粘贴JSON字符串
+3. 点击"格式化"按钮
+4. 右侧显示美化后的JSON
 
 ### JSON对比
-- **端点**: `POST /api/compare`
-- **参数**: `{ "json1": "first json", "json2": "second json" }`
-- **返回**: 差异分析结果
+1. 点击"JSON对比"按钮
+2. 在两个输入框中分别粘贴要对比的JSON
+3. 点击"对比"按钮
+4. 系统会高亮显示差异，并给出详细对比结果
 
-### 健康检查
-- **端点**: `GET /api/health`
-- **返回**: 服务状态信息
+### 常用操作
+- **复制结果**：格式化后可一键复制结果
+- **下载JSON**：将格式化结果下载为文件
+- **清空输入**：快速清空所有输入内容
+- **加载示例**：对比功能提供示例数据
 
-## 部署选项
+## 🔧 技术特点
 
-### 1. GitHub Pages（推荐）
-- 完全免费
-- 自动SSL证书
-- 全球CDN加速
-- 自动化部署
+- **纯前端处理**：所有JSON处理都在浏览器中完成，确保数据安全
+- **实时响应**：输入时实时更新行号，粘贴后自动处理
+- **智能错误处理**：友好的错误提示和验证
+- **现代化UI**：美观的渐变背景和动画效果
 
-### 2. 传统服务器部署
-- 使用Gunicorn + Nginx
-- 支持高并发
-- 生产环境稳定
+## 🌐 浏览器兼容性
 
-### 3. 云函数部署
-- 支持腾讯云云函数
-- 按量计费
-- 弹性伸缩
+- Chrome 60+
+- Firefox 55+
+- Safari 12+
+- Edge 79+
 
-## 开发指南
+支持所有现代浏览器，无需额外插件。
 
-### 环境要求
-- Python 3.7+
-- Flask 2.3.3+
-- 现代浏览器
+## 📄 许可证
 
-### 开发命令
-```bash
-# 安装开发依赖
-pip install -r requirements.txt
+MIT License - 可自由使用、修改和分发
 
-# 运行开发服务器
-python app.py
+## 🤝 贡献
 
-# 运行生产服务器
-gunicorn -c gunicorn_config.py app:app
-```
-
-## 贡献指南
-
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建Pull Request
-
-## 许可证
-
-MIT License
-
-## 技术支持
-
-- 问题反馈：GitHub Issues
-- 文档：本项目README
-- 部署帮助：参考部署指南
+欢迎提交Issue和Pull Request来改进这个工具！
 
 ---
 
-**注意**：GitHub Pages版本为静态版本，部分高级功能需要后端支持。完整功能请部署Flask版本。
+**提示**：这是一个纯前端工具，所有功能都在浏览器中运行，无需担心服务器部署和数据安全问题。
