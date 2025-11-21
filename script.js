@@ -13,6 +13,7 @@ function initializeApp() {
     document.getElementById('formatBtn').addEventListener('click', () => openModal('formatModal'));
     document.getElementById('compareBtn').addEventListener('click', () => openModal('compareModal'));
     document.getElementById('assertBtn').addEventListener('click', () => openModal('assertModal'));
+    document.getElementById('uidBtn').addEventListener('click', () => openModal('uidModal'));
     
     // 绑定格式化功能事件
     document.getElementById('formatExecute').addEventListener('click', formatJSON);
@@ -61,6 +62,27 @@ function initializeApp() {
             closeModal();
         }
     });
+    
+    // 绑定UID提取功能事件
+    document.getElementById('uidExtract').addEventListener('click', extractUIDs);
+    document.getElementById('uidCopy').addEventListener('click', copyUIDResult);
+    document.getElementById('uidClear').addEventListener('click', clearUIDInputs);
+    document.getElementById('uidDownload').addEventListener('click', downloadUIDResult);
+    
+    // 绑定文件上传事件
+    document.getElementById('uploadBtn').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+    
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+    
+    // 绑定拖拽事件
+    setupDragAndDrop();
+    
+    // 监听UID输入变化
+    document.getElementById('uidInput').addEventListener('input', function() {
+        updateLineNumbers('uidInput');
+    });
 }
 
 // 打开模态框
@@ -92,6 +114,18 @@ function openModal(modalId) {
         document.getElementById('assertOutput').value = '';
         // 重置状态
         updateAssertStatus('就绪', '');
+    }
+    // 如果是UID提取模态框，清空输入输出
+    else if (modalId === 'uidModal') {
+        document.getElementById('uidInput').value = '';
+        document.getElementById('uidOutput').value = '';
+        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('uidStats').textContent = '已提取: 0 个UID';
+        document.getElementById('fileInput').value = '';
+        
+        // 更新行号显示
+        updateLineNumbers('uidInput');
+        updateLineNumbers('uidOutput');
     }
 }
 
@@ -824,7 +858,7 @@ function initializeLineNumbers() {
         const textareaId = target.id;
         
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
             updateLineNumbers(textareaId);
         }
     });
@@ -835,7 +869,7 @@ function initializeLineNumbers() {
         const textareaId = target.id;
         
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
             // 使用setTimeout确保在粘贴内容后更新行号
             setTimeout(() => {
                 updateLineNumbers(textareaId);
@@ -849,7 +883,7 @@ function initializeLineNumbers() {
         const textareaId = target.id;
         
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'].includes(textareaId)) {
+        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
             syncLineNumbers(textareaId);
         }
     }, true); // 使用捕获阶段确保能监听到
@@ -860,7 +894,7 @@ function initializeLineNumbers() {
 
 // 更新所有文本区域的行号
 function updateAllLineNumbers() {
-    const textareas = ['formatInput', 'formatOutput', 'compareInput1', 'compareInput2'];
+    const textareas = ['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'];
     textareas.forEach(id => {
         updateLineNumbers(id);
     });
@@ -1093,6 +1127,493 @@ function updateAssertStatus(status, detail) {
     document.getElementById('assertStatusText').textContent = status;
     document.getElementById('assertStatusDetail').textContent = detail;
 }
+
+
+
+// 设置拖拽功能
+function setupDragAndDrop() {
+    const uploadArea = document.getElementById('fileUploadArea');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.classList.add('drag-over');
+    }
+    
+    function unhighlight() {
+        uploadArea.classList.remove('drag-over');
+    }
+    
+    uploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+}
+
+// 处理文件选择
+function handleFileSelect(e) {
+    const files = e.target.files;
+    handleFiles(files);
+}
+
+// 处理文件
+function handleFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    Array.from(files).forEach(function(file) {
+        if (isValidFileType(file)) {
+            readFileContent(file);
+        } else {
+            showNotification('不支持的文件类型: ' + file.name, 'warning');
+        }
+    });
+}
+
+// 检查文件类型是否有效
+function isValidFileType(file) {
+    const validTypes = ['.txt', '.json', '.log', '.csv', '.js', '.html', '.xml', '.groovy', '.sql'];
+    const fileName = file.name.toLowerCase();
+    return validTypes.some(function(type) {
+        return fileName.endsWith(type);
+    });
+}
+
+// 读取文件内容
+function readFileContent(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const content = e.target.result;
+        addFileToList(file, content);
+        appendToInputArea(content);
+    };
+    
+    reader.onerror = function() {
+        showNotification('读取文件失败: ' + file.name, 'error');
+    };
+    
+    reader.readAsText(file);
+}
+
+// 添加文件到文件列表
+function addFileToList(file, content) {
+    const fileList = document.getElementById('fileList');
+    
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = '<div><span class="file-name">' + file.name + '</span><span class="file-size">(' + formatFileSize(file.size) + ')</span></div><button class="file-remove" onclick="removeFileItem(this)">×</button>';
+    
+    fileItem.dataset.content = content;
+    fileList.appendChild(fileItem);
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 移除文件项
+function removeFileItem(button) {
+    const fileItem = button.parentNode;
+    const content = fileItem.dataset.content;
+    fileItem.remove();
+    
+    // 从输入区域移除对应内容
+    const inputArea = document.getElementById('uidInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent.includes(content)) {
+        const newContent = currentContent.replace(content, '').replace(/\\r\\n\n+/g, '').trim();
+        inputArea.value = newContent;
+        updateLineNumbers('uidInput');
+    }
+}
+
+// 追加内容到输入区域
+function appendToInputArea(content) {
+    const inputArea = document.getElementById('uidInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent) {
+        inputArea.value = currentContent + '\\r\\n\\r\\n' + content;
+    } else {
+        inputArea.value = content;
+    }
+    
+    updateLineNumbers('uidInput');
+    showNotification('文件已添加到输入区域', 'success');
+}
+
+// 提取UID
+function extractUIDs() {
+    const input = document.getElementById('uidInput').value;
+    const output = document.getElementById('uidOutput');
+    const stats = document.getElementById('uidStats');
+    const extractBtn = document.getElementById('uidExtract');
+    
+    if (!input.trim()) {
+        showNotification('请输入文本内容或上传文件', 'warning');
+        return;
+    }
+    
+    // 显示加载状态
+    const originalText = extractBtn.textContent;
+    extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
+    extractBtn.disabled = true;
+    
+    // 使用setTimeout模拟异步操作
+    setTimeout(function() {
+        try {
+            // 使用正则表达式提取所有以UID开头的字符串
+            const uidRegex = /UID:[^\s,"'`]+/gi;
+            const matches = input.match(uidRegex);
+            
+            if (matches && matches.length > 0) {
+                // 去重并排序
+                const uniqueUIDs = Array.from(new Set(matches)).sort();
+                const result = uniqueUIDs.join(',');
+                
+                output.value = result;
+                stats.textContent = '已提取: ' + uniqueUIDs.length + ' 个UID';
+                showNotification('成功提取 ' + uniqueUIDs.length + ' 个UID', 'success');
+                
+                // 更新输出区域的行号
+                updateLineNumbers('uidOutput');
+            } else {
+                output.value = '';
+                stats.textContent = '已提取: 0 个UID';
+                showNotification('未找到以UID开头的字符串', 'info');
+            }
+        } catch (error) {
+            console.error('UID提取错误:', error);
+            showNotification('提取失败，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            extractBtn.textContent = originalText;
+            extractBtn.disabled = false;
+        }
+    }, 100);
+}
+
+// 复制UID结果
+function copyUIDResult() {
+    const output = document.getElementById('uidOutput');
+    if (!output.value) {
+        showNotification('没有内容可复制', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(output.value).then(function() {
+        showNotification('已复制到剪贴板', 'success');
+    }).catch(function(err) {
+        console.error('复制失败:', err);
+        showNotification('复制失败', 'error');
+    });
+}
+
+// 下载UID结果
+function downloadUIDResult() {
+    const output = document.getElementById('uidOutput').value;
+    if (!output) {
+        showNotification('没有内容可下载', 'warning');
+        return;
+    }
+    
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted_uids.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification('文件已下载', 'success');
+}
+
+// 清空UID输入
+function clearUIDInputs() {
+    document.getElementById('uidInput').value = '';
+    document.getElementById('uidOutput').value = '';
+    document.getElementById('fileList').innerHTML = '';
+    document.getElementById('uidStats').textContent = '已提取: 0 个UID';
+    document.getElementById('fileInput').value = '';
+    
+    // 更新行号显示
+    updateLineNumbers('uidInput');
+    updateLineNumbers('uidOutput');
+    
+    showNotification('所有输入已清空', 'info');
+}
+
+
+
+// 设置拖拽功能
+function setupDragAndDrop() {
+    const uploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.classList.add('drag-over');
+    }
+    
+    function unhighlight() {
+        uploadArea.classList.remove('drag-over');
+    }
+    
+    uploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+}
+
+// 处理文件选择
+function handleFileSelect(e) {
+    const files = e.target.files;
+    handleFiles(files);
+}
+
+// 处理文件
+function handleFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    Array.from(files).forEach(file => {
+        if (isValidFileType(file)) {
+            readFileContent(file);
+        } else {
+            showNotification(`不支持的文件类型: ${file.name}`, 'warning');
+        }
+    });
+}
+
+// 检查文件类型是否有效
+function isValidFileType(file) {
+    const validTypes = ['.txt', '.json', '.log', '.csv', '.js', '.html', '.xml', '.groovy', '.sql'];
+    const fileName = file.name.toLowerCase();
+    return validTypes.some(type => fileName.endsWith(type));
+}
+
+// 读取文件内容
+function readFileContent(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const content = e.target.result;
+        addFileToList(file, content);
+        appendToInputArea(content);
+    };
+    
+    reader.onerror = function() {
+        showNotification(`读取文件失败: ${file.name}`, 'error');
+    };
+    
+    reader.readAsText(file);
+}
+
+// 添加文件到文件列表
+function addFileToList(file, content) {
+    const fileList = document.getElementById('fileList');
+    
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = `
+        <div>
+            <span class="file-name">${file.name}</span>
+            <span class="file-size">(${formatFileSize(file.size)})</span>
+        </div>
+        <button class="file-remove" onclick="removeFileItem(this)">×</button>
+    `;
+    
+    fileItem.dataset.content = content;
+    fileList.appendChild(fileItem);
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 移除文件项
+function removeFileItem(button) {
+    const fileItem = button.parentNode;
+    const content = fileItem.dataset.content;
+    fileItem.remove();
+    
+    // 从输入区域移除对应内容
+    const inputArea = document.getElementById('uidInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent.includes(content)) {
+        const newContent = currentContent.replace(content, '').replace(/\\r\\n\n+/g, '').trim();
+        inputArea.value = newContent;
+        updateLineNumbers('uidInput');
+    }
+}
+
+// 追加内容到输入区域
+function appendToInputArea(content) {
+    const inputArea = document.getElementById('uidInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent) {
+        inputArea.value = currentContent + '\\r\\n\\r\\n' + content;
+    } else {
+        inputArea.value = content;
+    }
+    
+    updateLineNumbers('uidInput');
+    showNotification(`文件已添加到输入区域`, 'success');
+}
+
+// 提取UID
+function extractUIDs() {
+    const input = document.getElementById('uidInput').value;
+    const output = document.getElementById('uidOutput');
+    const stats = document.getElementById('uidStats');
+    const extractBtn = document.getElementById('uidExtract');
+    
+    if (!input.trim()) {
+        showNotification('请输入文本内容或上传文件', 'warning');
+        return;
+    }
+    
+    // 显示加载状态
+    const originalText = extractBtn.textContent;
+    extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
+    extractBtn.disabled = true;
+    
+    // 使用setTimeout模拟异步操作
+    setTimeout(() => {
+        try {
+            // 使用正则表达式提取所有以UID开头的字符串
+            const uidRegex = /UID:[^\s,"'`]+/gi;
+            const matches = input.match(uidRegex);
+            
+            if (matches && matches.length > 0) {
+                // 去重并排序
+                const uniqueUIDs = [...new Set(matches)].sort();
+                const result = uniqueUIDs.join(',');
+                
+                output.value = result;
+                stats.textContent = `已提取: ${uniqueUIDs.length} 个UID`;
+                showNotification(`成功提取 ${uniqueUIDs.length} 个UID`, 'success');
+                
+                // 更新输出区域的行号
+                updateLineNumbers('uidOutput');
+            } else {
+                output.value = '';
+                stats.textContent = '已提取: 0 个UID';
+                showNotification('未找到以UID开头的字符串', 'info');
+            }
+        } catch (error) {
+            console.error('UID提取错误:', error);
+            showNotification('提取失败，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            extractBtn.textContent = originalText;
+            extractBtn.disabled = false;
+        }
+    }, 100);
+}
+
+// 复制UID结果
+function copyUIDResult() {
+    const output = document.getElementById('uidOutput');
+    if (!output.value) {
+        showNotification('没有内容可复制', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(output.value).then(() => {
+        showNotification('已复制到剪贴板', 'success');
+    }).catch(err => {
+        console.error('复制失败:', err);
+        showNotification('复制失败', 'error');
+    });
+}
+
+// 下载UID结果
+function downloadUIDResult() {
+    const output = document.getElementById('uidOutput').value;
+    if (!output) {
+        showNotification('没有内容可下载', 'warning');
+        return;
+    }
+    
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted_uids.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification('文件已下载', 'success');
+}
+
+// 清空UID输入
+function clearUIDInputs() {
+    document.getElementById('uidInput').value = '';
+    document.getElementById('uidOutput').value = '';
+    document.getElementById('fileList').innerHTML = '';
+    document.getElementById('uidStats').textContent = '已提取: 0 个UID';
+    document.getElementById('fileInput').value = '';
+    
+    // 更新行号显示
+    updateLineNumbers('uidInput');
+    updateLineNumbers('uidOutput');
+    
+    showNotification('所有输入已清空', 'info');
+}
+
+
 
 
 
