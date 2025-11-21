@@ -23,6 +23,10 @@
                 <span class="icon">🔍</span>
                 JSON对比
             </button>
+            <button id="assertBtn" class="btn btn-warning">
+                <span class="icon">🔧</span>
+                JSON断言生成
+            </button>
         </div>
 
         <!-- JSON格式化弹框 -->
@@ -101,6 +105,50 @@
                     <div class="compare-result">
                         <h3>对比结果详情</h3>
                         <div id="compareResult" class="result-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JSON断言生成弹框 -->
+        <div id="assertModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>JSON断言生成</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="assertInclude">仅保留</label>
+                            <input type="text" id="assertInclude" placeholder="输入要保留的key，英文逗号分隔，如：abc,bc">
+                        </div>
+                        <div class="filter-group">
+                            <label for="assertExclude">仅删除</label>
+                            <input type="text" id="assertExclude" placeholder="输入要删除的key，英文逗号分隔，如：abc,bc">
+                        </div>
+                    </div>
+                    <div class="input-output-container">
+                        <div class="panel">
+                            <h3>JSON输入</h3>
+                            <textarea id="assertInput" placeholder="在此粘贴JSON数据..." class="json-textarea-simple"></textarea>
+                            <div class="panel-actions">
+                                <button id="assertFormat" class="btn btn-primary">格式化</button>
+                                <button id="assertClear" class="btn btn-outline">清空</button>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <h3>断言输出</h3>
+                            <textarea id="assertOutput" placeholder="断言代码将显示在这里..." class="json-textarea-simple" readonly></textarea>
+                            <div class="panel-actions">
+                                <button id="assertCopy" class="btn btn-secondary">复制</button>
+                                <button id="assertGenerate" class="btn btn-success">生成断言</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-bar" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div class="status-text" id="assertStatusText">就绪</div>
+                        <div class="status-text" id="assertStatusDetail"></div>
                     </div>
                 </div>
             </div>

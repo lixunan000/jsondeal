@@ -1,5 +1,6 @@
 // 全局变量
 let currentModal = null;
+let assertDebounceTimer; // 断言生成的防抖定时器
 
 // DOM 加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -11,6 +12,7 @@ function initializeApp() {
     // 绑定按钮事件
     document.getElementById('formatBtn').addEventListener('click', () => openModal('formatModal'));
     document.getElementById('compareBtn').addEventListener('click', () => openModal('compareModal'));
+    document.getElementById('assertBtn').addEventListener('click', () => openModal('assertModal'));
     
     // 绑定格式化功能事件
     document.getElementById('formatExecute').addEventListener('click', formatJSON);
@@ -24,6 +26,20 @@ function initializeApp() {
     document.getElementById('compareClearAll').addEventListener('click', clearCompareInputs);
     document.getElementById('compareLoadExample1').addEventListener('click', () => loadCompareExample(1));
     document.getElementById('compareLoadExample2').addEventListener('click', () => loadCompareExample(2));
+    
+    // 绑定断言生成功能事件
+    document.getElementById('assertFormat').addEventListener('click', formatAssertJson);
+    document.getElementById('assertClear').addEventListener('click', clearAssertJson);
+    document.getElementById('assertCopy').addEventListener('click', copyAssertions);
+    document.getElementById('assertGenerate').addEventListener('click', generateAssertions);
+    
+    // 监听断言输入变化
+    document.getElementById('assertInput').addEventListener('input', function() {
+        clearTimeout(assertDebounceTimer);
+        assertDebounceTimer = setTimeout(() => {
+            generateAssertions();
+        }, 500);
+    });
     
     // 绑定关闭按钮事件
     document.querySelectorAll('.close').forEach(closeBtn => {
@@ -69,6 +85,13 @@ function openModal(modalId) {
         // 更新行号显示
         updateLineNumbers('compareInput1');
         updateLineNumbers('compareInput2');
+    }
+    // 如果是断言生成模态框，清空输入输出
+    else if (modalId === 'assertModal') {
+        document.getElementById('assertInput').value = '';
+        document.getElementById('assertOutput').value = '';
+        // 重置状态
+        updateAssertStatus('就绪', '');
     }
 }
 
@@ -882,3 +905,194 @@ function syncLineNumbers(textareaId) {
     
     lineNumbers.scrollTop = textarea.scrollTop;
 }
+
+// JSON断言生成功能
+function formatAssertJson() {
+    const input = document.getElementById('assertInput').value.trim();
+    const output = document.getElementById('assertOutput');
+    
+    if (!input) {
+        showNotification('请输入JSON字符串', 'error');
+        return;
+    }
+    
+    try {
+        const parsed = JSON.parse(input);
+        const formatted = JSON.stringify(parsed, null, 4);
+        document.getElementById('assertInput').value = formatted;
+        showNotification('格式化成功！', 'success');
+    } catch (error) {
+        showNotification('JSON转换失败', 'error');
+    }
+}
+
+// 清空断言JSON
+function clearAssertJson() {
+    document.getElementById('assertInput').value = '';
+    document.getElementById('assertOutput').value = '';
+    updateAssertStatus('就绪', '');
+    showNotification('输入已清空', 'info');
+}
+
+// 复制断言
+function copyAssertions() {
+    const output = document.getElementById('assertOutput').value;
+    if (!output) {
+        showNotification('没有内容可复制', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(output).then(() => {
+        showNotification('已复制到剪贴板', 'success');
+    }).catch(err => {
+        console.error('复制失败:', err);
+        showNotification('复制失败', 'error');
+    });
+}
+
+// 生成断言
+function generateAssertions() {
+    const input = document.getElementById('assertInput').value.trim();
+    const output = document.getElementById('assertOutput');
+    
+    if (!input) {
+        updateAssertStatus('错误', '请输入JSON数据');
+        return;
+    }
+    
+    try {
+        const parsed = JSON.parse(input);
+        const assertions = generateAssertionsFromJson(parsed);
+        output.value = assertions;
+        updateAssertStatus('完成', `已生成 ${countAssertions(assertions)} 条断言`);
+        showNotification('断言生成成功！', 'success');
+    } catch (error) {
+        updateAssertStatus('错误', 'JSON转换失败');
+        showNotification('JSON转换失败', 'error');
+    }
+}
+
+// 从JSON生成断言
+function generateAssertionsFromJson(json, path = 'resBody') {
+    let assertions = '';
+    
+    if (typeof json === 'object' && json !== null) {
+        if (Array.isArray(json)) {
+            // 数组处理
+            assertions += `assert(${json.length}, ${path}.length, "断言length");\n`;
+            
+            // 数组元素断言
+            json.forEach((item, index) => {
+                const itemPath = `${path}[${index}]`;
+                assertions += generateAssertionsFromJson(item, itemPath);
+            });
+        } else {
+            // 对象处理
+            Object.keys(json).forEach(key => {
+                const value = json[key];
+                const fullPath = path === 'resBody' ? `${path}.${key}` : `${path}.${key}`;
+                
+                // 获取过滤条件
+                const includeFilter = getIncludeFilter();
+                const excludeFilter = getExcludeFilter();
+                
+                // 应用过滤规则（考虑嵌套路径）
+                if (!shouldIncludeKey(key, fullPath, includeFilter, excludeFilter)) {
+                    // 跳过这个键，但如果是对象，继续递归处理其子属性
+                    if (typeof value === 'object' && value !== null) {
+                        assertions += generateAssertionsFromJson(value, fullPath);
+                    }
+                    return;
+                }
+                
+                // 基本类型断言
+                if (typeof value === 'string') {
+                    assertions += `assert("${value}", ${fullPath}, "断言${key}");\n`;
+                } else if (typeof value === 'number') {
+                    assertions += `assert(${value}, ${fullPath}, "断言${key}");\n`;
+                } else if (typeof value === 'boolean') {
+                    assertions += `assert(${value}, ${fullPath}, "断言${key}");\n`;
+                } else if (value === null) {
+                    assertions += `assert(null, ${fullPath}, "断言${key}");\n`;
+                } else if (typeof value === 'object') {
+                    // 递归处理嵌套对象
+                    assertions += generateAssertionsFromJson(value, fullPath);
+                }
+            });
+        }
+    }
+    
+    return assertions;
+}
+
+// 获取仅保留过滤条件
+function getIncludeFilter() {
+    const includeInput = document.getElementById('assertInclude').value.trim();
+    if (!includeInput) return [];
+    return includeInput.split(',').map(key => key.trim()).filter(key => key);
+}
+
+// 获取仅删除过滤条件
+function getExcludeFilter() {
+    const excludeInput = document.getElementById('assertExclude').value.trim();
+    if (!excludeInput) return [];
+    return excludeInput.split(',').map(key => key.trim()).filter(key => key);
+}
+
+// 判断是否应该包含该键（考虑嵌套路径）
+function shouldIncludeKey(key, fullPath, includeFilter, excludeFilter) {
+    // 先应用内置过滤规则
+    if (key === 'pubts' || key === 'tenant' || key.endsWith('id')) {
+        return false;
+    }
+    
+    // 应用仅保留过滤（优先级最高）
+    if (includeFilter.length > 0) {
+        // 检查当前键名是否在过滤列表中
+        if (includeFilter.includes(key)) {
+            return true;
+        }
+        
+        // 检查完整路径中是否包含过滤键名
+        for (const filterKey of includeFilter) {
+            if (fullPath.includes('.' + filterKey + '.') || fullPath.endsWith('.' + filterKey)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    // 应用仅删除过滤
+    if (excludeFilter.length > 0) {
+        // 检查当前键名是否在排除列表中
+        if (excludeFilter.includes(key)) {
+            return false;
+        }
+        
+        // 检查完整路径中是否包含排除键名
+        for (const filterKey of excludeFilter) {
+            if (fullPath.includes('.' + filterKey + '.') || fullPath.endsWith('.' + filterKey)) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    return true;
+}
+
+// 计算断言数量
+function countAssertions(assertions) {
+    return (assertions.match(/assert\(/g) || []).length;
+}
+
+// 更新断言状态
+function updateAssertStatus(status, detail) {
+    document.getElementById('assertStatusText').textContent = status;
+    document.getElementById('assertStatusDetail').textContent = detail;
+}
+
+
+
