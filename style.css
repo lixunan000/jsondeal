@@ -299,7 +299,7 @@ header p {
     resize: vertical;
     transition: border-color 0.3s ease;
     position: relative;
-    z-index: 2;
+    z-index: 1;
     background: white;
 }
 
@@ -385,7 +385,7 @@ header p {
     overflow: hidden;
     padding: 15px;
     border-radius: 0 8px 8px 0;
-    z-index: 1;
+    z-index: 2;
 }
 
 /* 行级高亮样式 */
