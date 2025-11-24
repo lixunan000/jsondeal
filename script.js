@@ -1257,7 +1257,7 @@ function appendToInputArea(content) {
     const currentContent = inputArea.value;
     
     if (currentContent) {
-        inputArea.value = currentContent + '\\r\\n\\r\\n' + content;
+        inputArea.value = currentContent + '\r\n\r\n' + content;
     } else {
         inputArea.value = content;
     }
@@ -1287,7 +1287,7 @@ function extractUIDs() {
     setTimeout(function() {
         try {
             // 使用正则表达式提取所有以UID开头的字符串
-            const uidRegex = /UID:[^\s,"'`]+/gi;
+            const uidRegex = /UID:[^\s,"'`#]+/gi;
             const matches = input.match(uidRegex);
             
             if (matches && matches.length > 0) {
@@ -1502,7 +1502,7 @@ function appendToInputArea(content) {
     const currentContent = inputArea.value;
     
     if (currentContent) {
-        inputArea.value = currentContent + '\\r\\n\\r\\n' + content;
+        inputArea.value = currentContent + '\r\n\r\n' + content;
     } else {
         inputArea.value = content;
     }
@@ -1532,7 +1532,7 @@ function extractUIDs() {
     setTimeout(() => {
         try {
             // 使用正则表达式提取所有以UID开头的字符串
-            const uidRegex = /UID:[^\s,"'`]+/gi;
+            const uidRegex = /UID:[^\s,"'`#]+/gi;
             const matches = input.match(uidRegex);
             
             if (matches && matches.length > 0) {
