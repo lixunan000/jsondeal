@@ -14,6 +14,7 @@ function initializeApp() {
     document.getElementById('compareBtn').addEventListener('click', () => openModal('compareModal'));
     document.getElementById('assertBtn').addEventListener('click', () => openModal('assertModal'));
     document.getElementById('uidBtn').addEventListener('click', () => openModal('uidModal'));
+    document.getElementById('idReplaceBtn').addEventListener('click', () => openModal('idReplaceModal'));
     
     // 绑定格式化功能事件
     document.getElementById('formatExecute').addEventListener('click', formatJSON);
@@ -68,6 +69,12 @@ function initializeApp() {
     document.getElementById('uidCopy').addEventListener('click', copyUIDResult);
     document.getElementById('uidClear').addEventListener('click', clearUIDInputs);
     document.getElementById('uidDownload').addEventListener('click', downloadUIDResult);
+    
+    // 绑定批量ID替换功能事件
+    document.getElementById('idReplaceExecute').addEventListener('click', replaceIds);
+    document.getElementById('idReplaceCopy').addEventListener('click', copyIdReplaceResult);
+    document.getElementById('idReplaceClear').addEventListener('click', clearIdReplaceInputs);
+    document.getElementById('idReplaceDownload').addEventListener('click', downloadIdReplaceResult);
     
     // 绑定文件上传事件
     document.getElementById('uploadBtn').addEventListener('click', function() {
@@ -126,6 +133,15 @@ function openModal(modalId) {
         // 更新行号显示
         updateLineNumbers('uidInput');
         updateLineNumbers('uidOutput');
+    }
+    // 如果是批量ID替换模态框，清空输入输出
+    else if (modalId === 'idReplaceModal') {
+        document.getElementById('idReplaceInput').value = '';
+        document.getElementById('idReplaceOutput').value = '';
+        
+        // 更新行号显示
+        updateLineNumbers('idReplaceInput');
+        updateLineNumbers('idReplaceOutput');
     }
 }
 
@@ -286,8 +302,6 @@ function createDiffLineMap(lines, differences, jsonType) {
     const diffLineMap = {};
     
     differences.forEach(diff => {
-        const diffValue = jsonType === 'json1' ? diff.value1 : diff.value2;
-        
         // 处理数组类型的差异
         if (diff.path.includes('[') && diff.path.includes(']')) {
             // 这是数组元素的差异
@@ -305,7 +319,6 @@ function createDiffLineMap(lines, differences, jsonType) {
 function highlightArrayDifferences(lines, diffLineMap, diff, jsonType) {
     const pathParts = diff.path.split('.');
     const arrayPath = pathParts.slice(0, -1).join('.'); // 获取数组路径
-    const arrayIndex = pathParts[pathParts.length - 1]; // 获取数组索引
     
     // 查找包含数组的行
     let arrayStartLine = -1;
@@ -347,8 +360,6 @@ function highlightArrayDifferences(lines, diffLineMap, diff, jsonType) {
 
 // 高亮键值对差异
 function highlightKeyValueDifferences(lines, diffLineMap, diff, jsonType) {
-    const diffValue = jsonType === 'json1' ? diff.value1 : diff.value2;
-    
     // 获取路径中的最后一个键名
     const pathParts = diff.path.split('.');
     const lastKey = pathParts[pathParts.length - 1];
@@ -360,7 +371,7 @@ function highlightKeyValueDifferences(lines, diffLineMap, diff, jsonType) {
         
         // 方法1：精确键名匹配 - 这是最可靠的方法
         // 检查行是否包含该键名，并且格式正确（"key":）
-        const keyPattern = new RegExp(`\\"${lastKey}\\"\\s*:`);
+        const keyPattern = new RegExp(`\\"${lastKey}\\\"\\s*:`);
         if (keyPattern.test(line)) {
             // 根据差异类型和JSON类型正确分配高亮
             assignHighlightClass(diffLineMap, lineNumber, diff.type, jsonType);
@@ -374,7 +385,7 @@ function highlightKeyValueDifferences(lines, diffLineMap, diff, jsonType) {
         // 方法3：处理嵌套对象 - 检查路径中的父级键
         if (pathParts.length > 1) {
             const parentKey = pathParts[pathParts.length - 2];
-            const parentPattern = new RegExp(`\\"${parentKey}\\"\\s*:`);
+            const parentPattern = new RegExp(`\\"${parentKey}\\\"\\s*:`);
             if (parentPattern.test(line)) {
                 // 检查这一行是否开始一个对象或数组
                 if (trimmedLine.endsWith('{') || trimmedLine.endsWith('[')) {
@@ -987,7 +998,6 @@ function copyAssertions() {
 // 生成断言
 function generateAssertions() {
     const input = document.getElementById('assertInput').value.trim();
-    const output = document.getElementById('assertOutput');
     
     if (!input) {
         updateAssertStatus('错误', '请输入JSON数据');
@@ -997,7 +1007,7 @@ function generateAssertions() {
     try {
         const parsed = JSON.parse(input);
         const assertions = generateAssertionsFromJson(parsed);
-        output.value = assertions;
+        document.getElementById('assertOutput').value = assertions;
         updateAssertStatus('完成', `已生成 ${countAssertions(assertions)} 条断言`);
         showNotification('断言生成成功！', 'success');
     } catch (error) {
@@ -1128,8 +1138,6 @@ function updateAssertStatus(status, detail) {
     document.getElementById('assertStatusDetail').textContent = detail;
 }
 
-
-
 // 设置拖拽功能
 function setupDragAndDrop() {
     const uploadArea = document.getElementById('fileUploadArea');
@@ -1245,7 +1253,7 @@ function removeFileItem(button) {
     const currentContent = inputArea.value;
     
     if (currentContent.includes(content)) {
-        const newContent = currentContent.replace(content, '').replace(/\\r\\n\n+/g, '').trim();
+        const newContent = currentContent.replace(content, '').replace(/\r\n\n+/g, '').trim();
         inputArea.value = newContent;
         updateLineNumbers('uidInput');
     }
@@ -1368,203 +1376,176 @@ function clearUIDInputs() {
     showNotification('所有输入已清空', 'info');
 }
 
-
-
-// 设置拖拽功能
-function setupDragAndDrop() {
-    const uploadArea = document.getElementById('fileUploadArea');
-    const fileInput = document.getElementById('fileInput');
+// 批量ID替换功能
+async function replaceIds() {
+    const input = document.getElementById('idReplaceInput').value.trim();
+    const output = document.getElementById('idReplaceOutput');
+    const executeBtn = document.getElementById('idReplaceExecute');
     
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, unhighlight, false);
-    });
-    
-    function highlight() {
-        uploadArea.classList.add('drag-over');
-    }
-    
-    function unhighlight() {
-        uploadArea.classList.remove('drag-over');
-    }
-    
-    uploadArea.addEventListener('drop', handleDrop, false);
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleFiles(files);
-    }
-}
-
-// 处理文件选择
-function handleFileSelect(e) {
-    const files = e.target.files;
-    handleFiles(files);
-}
-
-// 处理文件
-function handleFiles(files) {
-    if (!files || files.length === 0) return;
-    
-    Array.from(files).forEach(file => {
-        if (isValidFileType(file)) {
-            readFileContent(file);
-        } else {
-            showNotification(`不支持的文件类型: ${file.name}`, 'warning');
-        }
-    });
-}
-
-// 检查文件类型是否有效
-function isValidFileType(file) {
-    const validTypes = ['.txt', '.json', '.log', '.csv', '.js', '.html', '.xml', '.groovy', '.sql'];
-    const fileName = file.name.toLowerCase();
-    return validTypes.some(type => fileName.endsWith(type));
-}
-
-// 读取文件内容
-function readFileContent(file) {
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        const content = e.target.result;
-        addFileToList(file, content);
-        appendToInputArea(content);
-    };
-    
-    reader.onerror = function() {
-        showNotification(`读取文件失败: ${file.name}`, 'error');
-    };
-    
-    reader.readAsText(file);
-}
-
-// 添加文件到文件列表
-function addFileToList(file, content) {
-    const fileList = document.getElementById('fileList');
-    
-    const fileItem = document.createElement('div');
-    fileItem.className = 'file-item';
-    fileItem.innerHTML = `
-        <div>
-            <span class="file-name">${file.name}</span>
-            <span class="file-size">(${formatFileSize(file.size)})</span>
-        </div>
-        <button class="file-remove" onclick="removeFileItem(this)">×</button>
-    `;
-    
-    fileItem.dataset.content = content;
-    fileList.appendChild(fileItem);
-}
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// 移除文件项
-function removeFileItem(button) {
-    const fileItem = button.parentNode;
-    const content = fileItem.dataset.content;
-    fileItem.remove();
-    
-    // 从输入区域移除对应内容
-    const inputArea = document.getElementById('uidInput');
-    const currentContent = inputArea.value;
-    
-    if (currentContent.includes(content)) {
-        const newContent = currentContent.replace(content, '').replace(/\\r\\n\n+/g, '').trim();
-        inputArea.value = newContent;
-        updateLineNumbers('uidInput');
-    }
-}
-
-// 追加内容到输入区域
-function appendToInputArea(content) {
-    const inputArea = document.getElementById('uidInput');
-    const currentContent = inputArea.value;
-    
-    if (currentContent) {
-        inputArea.value = currentContent + '\r\n\r\n' + content;
-    } else {
-        inputArea.value = content;
-    }
-    
-    updateLineNumbers('uidInput');
-    showNotification(`文件已添加到输入区域`, 'success');
-}
-
-// 提取UID
-function extractUIDs() {
-    const input = document.getElementById('uidInput').value;
-    const output = document.getElementById('uidOutput');
-    const stats = document.getElementById('uidStats');
-    const extractBtn = document.getElementById('uidExtract');
-    
-    if (!input.trim()) {
-        showNotification('请输入文本内容或上传文件', 'warning');
+    if (!input) {
+        showNotification('请输入SQL语句', 'warning');
         return;
     }
     
     // 显示加载状态
-    const originalText = extractBtn.textContent;
-    extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
-    extractBtn.disabled = true;
+    const originalText = executeBtn.textContent;
+    executeBtn.innerHTML = '<span class="loading"></span> 替换中...';
+    executeBtn.disabled = true;
     
-    // 使用setTimeout模拟异步操作
-    setTimeout(() => {
-        try {
-            // 使用正则表达式提取所有以UID开头的字符串
-            const uidRegex = /UID:[^\s,"'`#]+/gi;
-            const matches = input.match(uidRegex);
-            
-            if (matches && matches.length > 0) {
-                // 去重并排序
-                const uniqueUIDs = [...new Set(matches)].sort();
-                const result = uniqueUIDs.join(',');
-                
-                output.value = result;
-                stats.textContent = `已提取: ${uniqueUIDs.length} 个UID`;
-                showNotification(`成功提取 ${uniqueUIDs.length} 个UID`, 'success');
-                
-                // 更新输出区域的行号
-                updateLineNumbers('uidOutput');
-            } else {
-                output.value = '';
-                stats.textContent = '已提取: 0 个UID';
-                showNotification('未找到以UID开头的字符串', 'info');
-            }
-        } catch (error) {
-            console.error('UID提取错误:', error);
-            showNotification('提取失败，请重试', 'error');
-        } finally {
-            // 恢复按钮状态
-            extractBtn.textContent = originalText;
-            extractBtn.disabled = false;
-        }
-    }, 100);
+    try {
+        // 异步替换SQL中的ID
+        const replacedSql = await replaceIdsInSql(input);
+        output.value = replacedSql;
+        showNotification('ID替换成功！', 'success');
+        
+        // 更新输出区域的行号
+        updateLineNumbers('idReplaceOutput');
+    } catch (error) {
+        console.error('ID替换错误:', error);
+        showNotification(`ID替换失败: ${error.message}`, 'error');
+    } finally {
+        // 恢复按钮状态
+        executeBtn.textContent = originalText;
+        executeBtn.disabled = false;
+    }
 }
 
-// 复制UID结果
-function copyUIDResult() {
-    const output = document.getElementById('uidOutput');
+// 异步替换SQL中的ID
+async function replaceIdsInSql(sql) {
+    // 使用正则表达式查找所有形如('数字ID', ...)的模式
+    const idPattern = /\('(\d+)',[^)]*\)/g;
+    
+    // 统计需要替换的ID数量
+    const matches = [...sql.matchAll(idPattern)];
+    const idCount = matches.length;
+    
+    if (idCount === 0) {
+        return sql; // 没有需要替换的ID，直接返回原SQL
+    }
+    
+    try {
+        // 直接调用雪花ID API
+        const apiUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
+        
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.msgSuccess || !data.data || data.data.length !== idCount) {
+            throw new Error(`API返回数据异常: ${data.desc || '未知错误'}`);
+        }
+        
+        const snowflakeIds = data.data;
+        console.log('使用API获取雪花ID成功');
+        
+        let result = sql;
+        let currentIndex = 0;
+        
+        // 替换所有匹配的数字ID
+        result = result.replace(idPattern, (match, originalId) => {
+            if (currentIndex >= snowflakeIds.length) {
+                throw new Error('雪花ID数量不足，无法完成替换');
+            }
+            
+            // 替换第一个参数为新的雪花ID
+            const newId = `'${snowflakeIds[currentIndex]}'`;
+            currentIndex++;
+            
+            // 替换整个匹配的括号内容
+            return match.replace(`'${originalId}'`, newId);
+        });
+        
+        return result;
+    } catch (error) {
+        console.error('获取雪花ID失败:', error);
+        throw new Error(`雪花ID获取失败: ${error.message}`);
+    }
+}
+
+// 雪花ID生成器类
+class SnowflakeIdGenerator {
+    constructor() {
+        // 雪花ID的组成部分（64位）
+        // 1位符号位（始终为0） + 41位时间戳 + 10位机器ID + 12位序列号
+        this.epoch = 1609459200000n; // 2021-01-01 00:00:00 UTC
+        this.machineId = 1n; // 机器ID
+        this.sequence = 0n; // 序列号
+        this.lastTimestamp = 0n; // 上次生成ID的时间戳
+    }
+
+    // 生成雪花ID
+    generate() {
+        let timestamp = this.getCurrentTimestamp();
+        
+        // 如果是同一毫秒内生成的
+        if (timestamp === this.lastTimestamp) {
+            this.sequence = (this.sequence + 1n) & 0xFFFn; // 12位序列号，最大4095
+            if (this.sequence === 0n) {
+                // 序列号用尽，等待下一毫秒
+                timestamp = this.waitNextMillis(this.lastTimestamp);
+            }
+        } else {
+            this.sequence = 0n; // 不同毫秒，重置序列号
+        }
+        
+        this.lastTimestamp = timestamp;
+        
+        // 组装雪花ID
+        return ((timestamp - this.epoch) << 22n) |
+               (this.machineId << 12n) |
+               this.sequence;
+    }
+
+    // 获取当前时间戳（毫秒）
+    getCurrentTimestamp() {
+        return BigInt(Date.now());
+    }
+
+    // 等待下一毫秒
+    waitNextMillis(lastTimestamp) {
+        let timestamp = this.getCurrentTimestamp();
+        while (timestamp <= lastTimestamp) {
+            timestamp = this.getCurrentTimestamp();
+        }
+        return timestamp;
+    }
+
+    // 解析雪花ID
+    parse(snowflakeId) {
+        const id = BigInt(snowflakeId);
+        return {
+            timestamp: Number((id >> 22n) + this.epoch),
+            machineId: Number((id >> 12n) & 0x3FFn), // 10位机器ID
+            sequence: Number(id & 0xFFFn) // 12位序列号
+        };
+    }
+}
+
+// 创建全局雪花ID生成器实例
+const snowflakeGenerator = new SnowflakeIdGenerator();
+
+// 雪花ID生成函数（兼容旧接口）
+function generateSnowflakeId() {
+    return snowflakeGenerator.generate().toString();
+}
+
+// 生成下一个连续的雪花ID（兼容旧接口）
+function generateNextSnowflakeId(currentId) {
+    return snowflakeGenerator.generate().toString();
+}
+
+// 解析雪花ID
+function parseSnowflakeId(snowflakeId) {
+    return snowflakeGenerator.parse(snowflakeId);
+}
+
+// 复制ID替换结果
+function copyIdReplaceResult() {
+    const output = document.getElementById('idReplaceOutput');
     if (!output.value) {
         showNotification('没有内容可复制', 'warning');
         return;
@@ -1578,9 +1559,9 @@ function copyUIDResult() {
     });
 }
 
-// 下载UID结果
-function downloadUIDResult() {
-    const output = document.getElementById('uidOutput').value;
+// 下载ID替换结果
+function downloadIdReplaceResult() {
+    const output = document.getElementById('idReplaceOutput').value;
     if (!output) {
         showNotification('没有内容可下载', 'warning');
         return;
@@ -1590,7 +1571,7 @@ function downloadUIDResult() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'extracted_uids.txt';
+    a.download = 'replaced_sql.txt';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1598,22 +1579,14 @@ function downloadUIDResult() {
     showNotification('文件已下载', 'success');
 }
 
-// 清空UID输入
-function clearUIDInputs() {
-    document.getElementById('uidInput').value = '';
-    document.getElementById('uidOutput').value = '';
-    document.getElementById('fileList').innerHTML = '';
-    document.getElementById('uidStats').textContent = '已提取: 0 个UID';
-    document.getElementById('fileInput').value = '';
+// 清空ID替换输入
+function clearIdReplaceInputs() {
+    document.getElementById('idReplaceInput').value = '';
+    document.getElementById('idReplaceOutput').value = '';
     
     // 更新行号显示
-    updateLineNumbers('uidInput');
-    updateLineNumbers('uidOutput');
+    updateLineNumbers('idReplaceInput');
+    updateLineNumbers('idReplaceOutput');
     
     showNotification('所有输入已清空', 'info');
 }
-
-
-
-
-

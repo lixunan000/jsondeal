@@ -33,6 +33,10 @@
                 <span class="icon">🔑</span>
                 UID提取
             </button>
+            <button id="idReplaceBtn" class="btn btn-success">
+                <span class="icon">🔄</span>
+                批量ID替换
+            </button>
         </div>
 
         <!-- JSON格式化弹框 -->
@@ -201,6 +205,45 @@
                                 <p id="uidStats">已提取: 0 个UID</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量ID替换弹框 -->
+        <div id="idReplaceModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>批量ID替换</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="input-output-container">
+                        <div class="panel">
+                            <h3>SQL输入</h3>
+                            <div class="textarea-container">
+                                <div class="line-numbers" id="idReplaceInputLineNumbers"></div>
+                                <textarea id="idReplaceInput" placeholder="请粘贴SQL语句..." class="json-textarea"></textarea>
+                            </div>
+                            <div class="panel-actions">
+                                <button id="idReplaceExecute" class="btn btn-primary">替换ID</button>
+                                <button id="idReplaceClear" class="btn btn-outline">清空</button>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <h3>替换结果</h3>
+                            <div class="textarea-container">
+                                <div class="line-numbers" id="idReplaceOutputLineNumbers"></div>
+                                <textarea id="idReplaceOutput" placeholder="替换后的SQL将显示在这里..." class="json-textarea" readonly></textarea>
+                            </div>
+                            <div class="panel-actions">
+                                <button id="idReplaceCopy" class="btn btn-secondary">复制</button>
+                                <button id="idReplaceDownload" class="btn btn-outline">下载SQL</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="id-replace-info">
+                        <p><strong>功能说明：</strong>自动识别SQL语句中的ID值，并用连续的雪花ID替换它们，确保在数据库中不会重复。</p>
                     </div>
                 </div>
             </div>
