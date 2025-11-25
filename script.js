@@ -1427,20 +1427,39 @@ async function replaceIdsInSql(sql) {
         // 直接调用雪花ID API
         const apiUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
         
-        const response = await fetch(apiUrl);
+        console.log('开始调用雪花ID API:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'omit' // 不发送凭据，避免CORS预检请求
+        }).catch(error => {
+            console.error('Fetch请求失败:', error);
+            // 检查是否是CORS错误
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                throw new Error(`跨域请求被阻止。请检查浏览器控制台获取详细错误信息。`);
+            }
+            throw new Error(`网络请求失败: ${error.message}`);
+        });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
+            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const data = await response.json().catch(error => {
+            console.error('JSON解析失败:', error);
+            throw new Error(`响应数据格式错误: ${error.message}`);
+        });
         
         if (!data.msgSuccess || !data.data || data.data.length !== idCount) {
             throw new Error(`API返回数据异常: ${data.desc || '未知错误'}`);
         }
         
         const snowflakeIds = data.data;
-        console.log('使用API获取雪花ID成功');
+        console.log('使用API获取雪花ID成功:', snowflakeIds);
         
         let result = sql;
         let currentIndex = 0;
