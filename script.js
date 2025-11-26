@@ -138,6 +138,7 @@ function openModal(modalId) {
     else if (modalId === 'idReplaceModal') {
         document.getElementById('idReplaceInput').value = '';
         document.getElementById('idReplaceOutput').value = '';
+        document.getElementById('startSnowflakeId').value = '';
         
         // 更新行号显示
         updateLineNumbers('idReplaceInput');
@@ -1424,57 +1425,27 @@ async function replaceIdsInSql(sql) {
     }
     
     try {
-        // 尝试多个CORS代理服务
-        const proxyServices = [
-            'https://api.allorigins.win/raw?url=',
-            'https://cors-anywhere.herokuapp.com/',
-            'https://corsproxy.org/?'
-        ];
+        // 获取用户输入的起始雪花ID
+        const startSnowflakeIdInput = document.getElementById('startSnowflakeId').value.trim();
         
-        const targetUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
-        
-        let response;
-        let lastError;
-        
-        // 尝试不同的代理服务
-        for (const proxyUrl of proxyServices) {
-            try {
-                const apiUrl = proxyUrl + encodeURIComponent(targetUrl);
-                console.log('尝试CORS代理:', proxyUrl);
-                
-                response = await fetch(apiUrl);
-                
-                if (response.ok) {
-                    console.log('代理调用成功:', proxyUrl);
-                    break;
-                } else {
-                    console.warn('代理调用失败:', proxyUrl, response.status);
-                }
-            } catch (error) {
-                console.warn('代理调用异常:', proxyUrl, error.message);
-                lastError = error;
-            }
+        if (!startSnowflakeIdInput) {
+            throw new Error('请输入起始雪花ID');
         }
         
-        if (!response || !response.ok) {
-            throw new Error(`所有CORS代理都失败，最后错误: ${lastError?.message || '未知错误'}`);
+        // 验证起始雪花ID格式
+        if (!/^\d+$/.test(startSnowflakeIdInput)) {
+            throw new Error('起始雪花ID必须是数字');
         }
         
-        if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+        const startId = BigInt(startSnowflakeIdInput);
+        
+        // 生成连续的雪花ID（从起始ID开始依次递增）
+        const snowflakeIds = [];
+        for (let i = 0; i < idCount; i++) {
+            snowflakeIds.push((startId + BigInt(i)).toString());
         }
         
-        const data = await response.json().catch(error => {
-            console.error('JSON解析失败:', error);
-            throw new Error(`响应数据格式错误: ${error.message}`);
-        });
-        
-        if (!data.msgSuccess || !data.data || data.data.length !== idCount) {
-            throw new Error(`API返回数据异常: ${data.desc || '未知错误'}`);
-        }
-        
-        const snowflakeIds = data.data;
-        console.log('使用API获取雪花ID成功:', snowflakeIds);
+        console.log('生成的连续雪花ID:', snowflakeIds);
         
         let result = sql;
         let currentIndex = 0;
@@ -1495,69 +1466,12 @@ async function replaceIdsInSql(sql) {
         
         return result;
     } catch (error) {
-        console.error('获取雪花ID失败:', error);
-        throw new Error(`雪花ID获取失败: ${error.message}`);
+        console.error('ID替换失败:', error);
+        throw new Error(`ID替换失败: ${error.message}`);
     }
 }
 
-// 雪花ID生成器类
-class SnowflakeIdGenerator {
-    constructor() {
-        // 雪花ID的组成部分（64位）
-        // 1位符号位（始终为0） + 41位时间戳 + 10位机器ID + 12位序列号
-        this.epoch = 1609459200000n; // 2021-01-01 00:00:00 UTC
-        this.machineId = 1n; // 机器ID
-        this.sequence = 0n; // 序列号
-        this.lastTimestamp = 0n; // 上次生成ID的时间戳
-    }
 
-    // 生成雪花ID
-    generate() {
-        let timestamp = this.getCurrentTimestamp();
-        
-        // 如果是同一毫秒内生成的
-        if (timestamp === this.lastTimestamp) {
-            this.sequence = (this.sequence + 1n) & 0xFFFn; // 12位序列号，最大4095
-            if (this.sequence === 0n) {
-                // 序列号用尽，等待下一毫秒
-                timestamp = this.waitNextMillis(this.lastTimestamp);
-            }
-        } else {
-            this.sequence = 0n; // 不同毫秒，重置序列号
-        }
-        
-        this.lastTimestamp = timestamp;
-        
-        // 组装雪花ID
-        return ((timestamp - this.epoch) << 22n) |
-               (this.machineId << 12n) |
-               this.sequence;
-    }
-
-    // 获取当前时间戳（毫秒）
-    getCurrentTimestamp() {
-        return BigInt(Date.now());
-    }
-
-    // 等待下一毫秒
-    waitNextMillis(lastTimestamp) {
-        let timestamp = this.getCurrentTimestamp();
-        while (timestamp <= lastTimestamp) {
-            timestamp = this.getCurrentTimestamp();
-        }
-        return timestamp;
-    }
-
-    // 解析雪花ID
-    parse(snowflakeId) {
-        const id = BigInt(snowflakeId);
-        return {
-            timestamp: Number((id >> 22n) + this.epoch),
-            machineId: Number((id >> 12n) & 0x3FFn), // 10位机器ID
-            sequence: Number(id & 0xFFFn) // 12位序列号
-        };
-    }
-}
 
 // 创建全局雪花ID生成器实例
 const snowflakeGenerator = new SnowflakeIdGenerator();
