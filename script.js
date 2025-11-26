@@ -1424,18 +1424,15 @@ async function replaceIdsInSql(sql) {
     }
     
     try {
-        // 直接调用雪花ID API
-        const apiUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
+        // 使用CORS代理调用雪花ID API
+        const proxyUrl = 'https://corsproxy.io/?';
+        const targetUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
+        const apiUrl = proxyUrl + encodeURIComponent(targetUrl);
         
-        console.log('开始调用雪花ID API:', apiUrl);
+        console.log('通过CORS代理调用雪花ID API:', apiUrl);
         
-        // 使用简单的GET请求，避免触发CORS预检
         const response = await fetch(apiUrl).catch(error => {
             console.error('Fetch请求失败:', error);
-            // 检查是否是CORS错误
-            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                throw new Error(`跨域请求被阻止。请检查浏览器控制台获取详细错误信息。`);
-            }
             throw new Error(`网络请求失败: ${error.message}`);
         });
         
