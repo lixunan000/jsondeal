@@ -1429,14 +1429,8 @@ async function replaceIdsInSql(sql) {
         
         console.log('开始调用雪花ID API:', apiUrl);
         
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            mode: 'cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'omit' // 不发送凭据，避免CORS预检请求
-        }).catch(error => {
+        // 使用简单的GET请求，避免触发CORS预检
+        const response = await fetch(apiUrl).catch(error => {
             console.error('Fetch请求失败:', error);
             // 检查是否是CORS错误
             if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
