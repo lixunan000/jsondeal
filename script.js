@@ -1424,17 +1424,41 @@ async function replaceIdsInSql(sql) {
     }
     
     try {
-        // 使用CORS代理调用雪花ID API
-        const proxyUrl = 'https://corsproxy.io/?';
+        // 尝试多个CORS代理服务
+        const proxyServices = [
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/',
+            'https://corsproxy.org/?'
+        ];
+        
         const targetUrl = `https://yonbip.diwork.com/iuap-yonbuilder-businessflow/common/snowflakeUuid?count=${idCount}`;
-        const apiUrl = proxyUrl + encodeURIComponent(targetUrl);
         
-        console.log('通过CORS代理调用雪花ID API:', apiUrl);
+        let response;
+        let lastError;
         
-        const response = await fetch(apiUrl).catch(error => {
-            console.error('Fetch请求失败:', error);
-            throw new Error(`网络请求失败: ${error.message}`);
-        });
+        // 尝试不同的代理服务
+        for (const proxyUrl of proxyServices) {
+            try {
+                const apiUrl = proxyUrl + encodeURIComponent(targetUrl);
+                console.log('尝试CORS代理:', proxyUrl);
+                
+                response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    console.log('代理调用成功:', proxyUrl);
+                    break;
+                } else {
+                    console.warn('代理调用失败:', proxyUrl, response.status);
+                }
+            } catch (error) {
+                console.warn('代理调用异常:', proxyUrl, error.message);
+                lastError = error;
+            }
+        }
+        
+        if (!response || !response.ok) {
+            throw new Error(`所有CORS代理都失败，最后错误: ${lastError?.message || '未知错误'}`);
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
