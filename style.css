@@ -79,11 +79,74 @@ header p {
 }
 
 .button-group {
-    display: flex;
-    justify-content: center;
-    gap: 25px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
     margin-bottom: 60px;
-    flex-wrap: wrap;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    justify-items: center;
+}
+
+/* 首页按钮特定样式 */
+.button-group .btn {
+    padding: 16px 25px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    width: 100%;
+    max-width: 280px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* 首页按钮特定样式 */
+.button-group .btn {
+    padding: 16px 25px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    width: 100%;
+    max-width: 280px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* 首页按钮特定样式 */
+.button-group .btn {
+    padding: 16px 25px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    width: 100%;
+    max-width: 280px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* 首页按钮特定样式 */
+.button-group .btn {
+    padding: 16px 25px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    width: 100%;
+    max-width: 280px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .btn {
@@ -212,6 +275,163 @@ header p {
     overflow-y: auto;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     animation: modalSlideIn 0.3s ease;
+}
+
+/* Groovy SQL提取模态框特定样式 */
+#groovySqlModal .modal-content {
+    max-height: 90vh;
+}
+
+#groovySqlModal .input-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+    height: calc(90vh - 200px); /* 固定高度，减去头部和底部空间 */
+    min-height: 500px;
+}
+
+#groovySqlModal .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+#groovySqlModal .textarea-container {
+    flex: 1;
+    min-height: 200px;
+    max-height: 400px; /* 固定最大高度 */
+    overflow: hidden;
+}
+
+#groovySqlModal .json-textarea {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    max-height: 400px; /* 固定最大高度 */
+    padding: 15px;
+    border: none;
+    border-radius: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 21px;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+    position: relative;
+    z-index: 1;
+    background: white;
+    overflow-y: auto; /* 内容超出时显示滚动条 */
+}
+
+#groovySqlModal .uid-input-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+#groovySqlModal .uid-input-container {
+    flex: 0 0 auto; /* 固定高度，不拉伸 */
+    height: 200px; /* 固定初始高度 */
+    min-height: 200px;
+    max-height: 200px; /* 固定最大高度 */
+    overflow: hidden;
+}
+
+#groovySqlModal .uid-input-container .json-textarea {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    max-height: 200px; /* 固定最大高度 */
+    padding: 15px;
+    border: none;
+    border-radius: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 21px;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+    position: relative;
+    z-index: 1;
+    background: white;
+    overflow-y: auto; /* 内容超出时显示滚动条 */
+}
+
+#groovySqlModal .uid-file-upload-area {
+    flex: 0 0 auto;
+    min-height: 120px;
+    max-height: 150px;
+    overflow: hidden;
+}
+
+#groovySqlModal .panel-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 10px;
+    margin-top: 0;
+}
+
+#groovySqlModal .panel-actions .btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+#groovySqlModal .result-stats {
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+#groovySqlModal .result-stats p {
+    margin: 0;
+    font-weight: 500;
+    color: #495057;
+    font-size: 14px;
+}
+
+/* Groovy SQL提取弹窗说明文字样式 */
+.groovy-notice {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.groovy-notice p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.groovy-notice strong {
+    color: #495057;
+}
+
+/* Groovy SQL提取弹窗说明文字样式 */
+.groovy-notice {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.groovy-notice p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.groovy-notice strong {
+    color: #495057;
 }
 
 @keyframes modalSlideIn {
@@ -709,6 +929,17 @@ header p {
     box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
 }
 
+.btn-purple {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-purple:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(155, 89, 182, 0.3);
+}
+
 /* UID提取弹框左侧输入区域样式 */
 .uid-input-panel {
     display: flex;
@@ -721,6 +952,7 @@ header p {
     flex: 1;
     min-height: 50px;
     max-height: 150px;
+    overflow-y: auto;
 }
 
 .uid-file-upload-area {
@@ -741,6 +973,7 @@ header p {
     flex: 1;
     min-height: 50px;
     max-height: 150px;
+    overflow-y: auto;
 }
 
 .uid-file-upload-area {
@@ -1052,6 +1285,17 @@ header p {
     box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
 }
 
+.btn-purple {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-purple:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(155, 89, 182, 0.3);
+}
+
 /* UID提取弹框左侧输入区域样式 */
 .uid-input-panel {
     display: flex;
@@ -1064,6 +1308,7 @@ header p {
     flex: 1;
     min-height: 50px;
     max-height: 150px;
+    overflow-y: auto;
 }
 
 .uid-file-upload-area {
@@ -1084,6 +1329,7 @@ header p {
     flex: 1;
     min-height: 50px;
     max-height: 150px;
+    overflow-y: auto;
 }
 
 .uid-file-upload-area {

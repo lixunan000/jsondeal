@@ -15,6 +15,7 @@ function initializeApp() {
     document.getElementById('assertBtn').addEventListener('click', () => openModal('assertModal'));
     document.getElementById('uidBtn').addEventListener('click', () => openModal('uidModal'));
     document.getElementById('idReplaceBtn').addEventListener('click', () => openModal('idReplaceModal'));
+    document.getElementById('groovySqlBtn').addEventListener('click', () => openModal('groovySqlModal'));
     
     // 绑定格式化功能事件
     document.getElementById('formatExecute').addEventListener('click', formatJSON);
@@ -83,12 +84,37 @@ function initializeApp() {
     
     document.getElementById('fileInput').addEventListener('change', handleFileSelect);
     
+    // 绑定groovy文件上传事件
+    document.getElementById('groovyUploadBtn').addEventListener('click', function() {
+        document.getElementById('groovyFileInput').click();
+    });
+    
+    document.getElementById('groovyFileInput').addEventListener('change', handleGroovyFileSelect);
+    
+    // 绑定groovy SQL提取功能事件
+    document.getElementById('groovyExtract').addEventListener('click', groovyExtractSql);
+    document.getElementById('groovyCopy').addEventListener('click', copyGroovyResult);
+    document.getElementById('groovyClear').addEventListener('click', clearGroovyInputs);
+    document.getElementById('groovyDownload').addEventListener('click', downloadGroovyResult);
+    
+    // 绑定groovy SQL提取功能事件
+    document.getElementById('groovyExtract').addEventListener('click', groovyExtractSql);
+    document.getElementById('groovyCopy').addEventListener('click', copyGroovyResult);
+    document.getElementById('groovyClear').addEventListener('click', clearGroovyInputs);
+    document.getElementById('groovyDownload').addEventListener('click', downloadGroovyResult);
+    
     // 绑定拖拽事件
     setupDragAndDrop();
+    setupGroovyDragAndDrop();
     
     // 监听UID输入变化
     document.getElementById('uidInput').addEventListener('input', function() {
         updateLineNumbers('uidInput');
+    });
+    
+    // 监听groovy输入变化
+    document.getElementById('groovyInput').addEventListener('input', function() {
+        updateLineNumbers('groovyInput');
     });
 }
 
@@ -143,6 +169,18 @@ function openModal(modalId) {
         // 更新行号显示
         updateLineNumbers('idReplaceInput');
         updateLineNumbers('idReplaceOutput');
+    }
+    // 如果是groovy提取sql模态框，清空输入输出
+    else if (modalId === 'groovySqlModal') {
+        document.getElementById('groovyInput').value = '';
+        document.getElementById('groovyOutput').value = '';
+        document.getElementById('groovyFileList').innerHTML = '';
+        document.getElementById('groovyStats').textContent = '已提取: 0 条SQL';
+        document.getElementById('groovyFileInput').value = '';
+        
+        // 更新行号显示
+        updateLineNumbers('groovyInput');
+        updateLineNumbers('groovyOutput');
     }
 }
 
@@ -1473,6 +1511,50 @@ async function replaceIdsInSql(sql) {
 
 
 
+// 简单的雪花ID生成器实现
+class SnowflakeIdGenerator {
+    constructor() {
+        this.epoch = 1609459200000; // 2021-01-01 00:00:00 UTC
+        this.sequence = 0;
+        this.lastTimestamp = -1;
+    }
+
+    generate() {
+        let timestamp = Date.now();
+        
+        if (timestamp === this.lastTimestamp) {
+            this.sequence = (this.sequence + 1) & 0xFFF; // 12位序列号
+            if (this.sequence === 0) {
+                // 等待下一毫秒
+                while (timestamp <= this.lastTimestamp) {
+                    timestamp = Date.now();
+                }
+            }
+        } else {
+            this.sequence = 0;
+        }
+        
+        this.lastTimestamp = timestamp;
+        
+        // 生成雪花ID：时间戳(41位) + 机器ID(10位) + 序列号(12位)
+        const id = ((timestamp - this.epoch) << 22) | (1 << 12) | this.sequence;
+        return BigInt(id);
+    }
+
+    parse(snowflakeId) {
+        const id = BigInt(snowflakeId);
+        const timestamp = Number((id >> 22n) + BigInt(this.epoch));
+        const machineId = Number((id >> 12n) & 0x3FFn);
+        const sequence = Number(id & 0xFFFn);
+        
+        return {
+            timestamp: new Date(timestamp),
+            machineId: machineId,
+            sequence: sequence
+        };
+    }
+}
+
 // 创建全局雪花ID生成器实例
 const snowflakeGenerator = new SnowflakeIdGenerator();
 
@@ -1538,3 +1620,556 @@ function clearIdReplaceInputs() {
     
     showNotification('所有输入已清空', 'info');
 }
+
+// 设置groovy拖拽功能
+function setupGroovyDragAndDrop() {
+    const uploadArea = document.getElementById('groovyFileUploadArea');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.classList.add('drag-over');
+    }
+    
+    function unhighlight() {
+        uploadArea.classList.remove('drag-over');
+    }
+    
+    uploadArea.addEventListener('drop', handleGroovyDrop, false);
+    
+    function handleGroovyDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleGroovyFiles(files);
+    }
+}
+
+// 处理groovy文件选择
+function handleGroovyFileSelect(e) {
+    const files = e.target.files;
+    handleGroovyFiles(files);
+}
+
+// 处理groovy文件
+function handleGroovyFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    Array.from(files).forEach(function(file) {
+        if (isValidFileType(file)) {
+            readGroovyFileContent(file);
+        } else {
+            showNotification('不支持的文件类型: ' + file.name, 'warning');
+        }
+    });
+}
+
+// 读取groovy文件内容
+function readGroovyFileContent(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const content = e.target.result;
+        addGroovyFileToList(file, content);
+        appendToGroovyInputArea(content);
+    };
+    
+    reader.onerror = function() {
+        showNotification('读取文件失败: ' + file.name, 'error');
+    };
+    
+    reader.readAsText(file);
+}
+
+// 添加groovy文件到文件列表
+function addGroovyFileToList(file, content) {
+    const fileList = document.getElementById('groovyFileList');
+    
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = '<div><span class="file-name">' + file.name + '</span><span class="file-size">(' + formatFileSize(file.size) + ')</span></div><button class="file-remove" onclick="removeGroovyFileItem(this)">×</button>';
+    
+    fileItem.dataset.content = content;
+    fileList.appendChild(fileItem);
+}
+
+// 移除groovy文件项
+function removeGroovyFileItem(button) {
+    const fileItem = button.parentNode;
+    const content = fileItem.dataset.content;
+    fileItem.remove();
+    
+    // 从输入区域移除对应内容
+    const inputArea = document.getElementById('groovyInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent.includes(content)) {
+        const newContent = currentContent.replace(content, '').replace(/\r\n\n+/g, '').trim();
+        inputArea.value = newContent;
+        updateLineNumbers('groovyInput');
+    }
+}
+
+// 追加内容到groovy输入区域
+function appendToGroovyInputArea(content) {
+    const inputArea = document.getElementById('groovyInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent) {
+        inputArea.value = currentContent + '\r\n\r\n' + content;
+    } else {
+        inputArea.value = content;
+    }
+    
+    updateLineNumbers('groovyInput');
+    showNotification('文件已添加到输入区域', 'success');
+}
+
+// 检查文件类型是否有效
+function isValidFileType(file) {
+    const allowedTypes = ['.txt', '.json', '.log', '.csv', '.groovy', '.sql'];
+    const fileName = file.name.toLowerCase();
+    return allowedTypes.some(type => fileName.endsWith(type));
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 提取SQL语句的核心函数
+function extractSQL(groovyText) {
+    const sqlStatements = [];
+    
+    // 模式1：从Groovy代码中提取SQL（helper.execute("""...""")模式）
+    const executePattern = /helper\.execute\s*\(\s*"""([\s\S]*?)"""\s*\)/g;
+    
+    let match;
+    while ((match = executePattern.exec(groovyText)) !== null) {
+        const sqlContent = match[1].trim();
+        
+        // 检查SQL内容是否以DELETE或UPDATE开头
+        if (sqlContent.match(/^(DELETE|UPDATE)/i)) {
+            // 清理SQL语句：移除多余的空格和换行
+            const cleanedSQL = cleanSQL(sqlContent);
+            sqlStatements.push(cleanedSQL);
+        }
+    }
+    
+    // 模式2：直接提取纯SQL语句
+    const pureSqlPattern = /(?:^|\n)(DELETE|UPDATE)[\s\S]*?;/gmi;
+    let sqlMatch;
+    while ((sqlMatch = pureSqlPattern.exec(groovyText)) !== null) {
+        const sqlContent = sqlMatch[0].trim();
+        // 清理SQL语句
+        const cleanedSQL = cleanSQL(sqlContent);
+        sqlStatements.push(cleanedSQL);
+    }
+    
+    return sqlStatements;
+}
+
+// 清理SQL语句
+function cleanSQL(sql) {
+    // 移除多余的空格和换行，但保留基本的格式
+    return sql
+        .replace(/\r\n/g, '\n') // 统一换行符
+        .replace(/\n\s+/g, '\n') // 移除行首多余空格
+        .replace(/\s+/g, ' ') // 合并多个空格
+        .replace(/;\s*$/g, ';') // 清理结尾的分号
+        .trim();
+}
+
+// Groovy SQL提取功能
+function groovyExtractSql() {
+    const input = document.getElementById('groovyInput').value;
+    const output = document.getElementById('groovyOutput');
+    const stats = document.getElementById('groovyStats');
+    const extractBtn = document.getElementById('groovyExtract');
+    
+    if (!input.trim()) {
+        showNotification('请输入Groovy代码或SQL语句', 'warning');
+        return;
+    }
+    
+    // 显示加载状态
+    const originalText = extractBtn.textContent;
+    extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
+    extractBtn.disabled = true;
+    
+    // 使用setTimeout模拟异步操作
+    setTimeout(function() {
+        try {
+            // 使用extractSQL函数提取SQL语句
+            const sqlStatements = extractSQL(input);
+            
+            if (sqlStatements && sqlStatements.length > 0) {
+                const result = sqlStatements.join('\n\n');
+                output.value = result;
+                stats.textContent = '已提取: ' + sqlStatements.length + ' 条SQL';
+                showNotification('成功提取 ' + sqlStatements.length + ' 条SQL语句', 'success');
+                
+                // 更新输出区域的行号
+                updateLineNumbers('groovyOutput');
+            } else {
+                output.value = '';
+                stats.textContent = '已提取: 0 条SQL';
+                showNotification('未找到DELETE或UPDATE语句', 'info');
+            }
+        } catch (error) {
+            console.error('SQL提取错误:', error);
+            showNotification('提取失败，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            extractBtn.textContent = originalText;
+            extractBtn.disabled = false;
+        }
+    }, 100);
+}
+
+// 复制groovy提取结果
+function copyGroovyResult() {
+    const output = document.getElementById('groovyOutput');
+    if (!output.value) {
+        showNotification('没有内容可复制', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(output.value).then(function() {
+        showNotification('已复制到剪贴板', 'success');
+    }).catch(function(err) {
+        console.error('复制失败:', err);
+        showNotification('复制失败', 'error');
+    });
+}
+
+// 下载groovy提取结果
+function downloadGroovyResult() {
+    const output = document.getElementById('groovyOutput').value;
+    if (!output) {
+        showNotification('没有内容可下载', 'warning');
+        return;
+    }
+    
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted_sql.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification('文件已下载', 'success');
+}
+
+// 清空groovy输入
+function clearGroovyInputs() {
+    document.getElementById('groovyInput').value = '';
+    document.getElementById('groovyOutput').value = '';
+    document.getElementById('groovyFileList').innerHTML = '';
+    document.getElementById('groovyStats').textContent = '已提取: 0 条SQL';
+    document.getElementById('groovyFileInput').value = '';
+    
+    // 更新行号显示
+    updateLineNumbers('groovyInput');
+    updateLineNumbers('groovyOutput');
+    
+    showNotification('所有输入已清空', 'info');
+}
+
+
+
+// 设置groovy拖拽功能
+function setupGroovyDragAndDrop() {
+    const uploadArea = document.getElementById('groovyFileUploadArea');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(function(eventName) {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.classList.add('drag-over');
+    }
+    
+    function unhighlight() {
+        uploadArea.classList.remove('drag-over');
+    }
+    
+    uploadArea.addEventListener('drop', handleGroovyDrop, false);
+    
+    function handleGroovyDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleGroovyFiles(files);
+    }
+}
+
+// 处理groovy文件选择
+function handleGroovyFileSelect(e) {
+    const files = e.target.files;
+    handleGroovyFiles(files);
+}
+
+// 处理groovy文件
+function handleGroovyFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    Array.from(files).forEach(function(file) {
+        if (isValidFileType(file)) {
+            readGroovyFileContent(file);
+        } else {
+            showNotification('不支持的文件类型: ' + file.name, 'warning');
+        }
+    });
+}
+
+// 读取groovy文件内容
+function readGroovyFileContent(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const content = e.target.result;
+        addGroovyFileToList(file, content);
+        appendToGroovyInputArea(content);
+    };
+    
+    reader.onerror = function() {
+        showNotification('读取文件失败: ' + file.name, 'error');
+    };
+    
+    reader.readAsText(file);
+}
+
+// 添加groovy文件到文件列表
+function addGroovyFileToList(file, content) {
+    const fileList = document.getElementById('groovyFileList');
+    
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = '<div><span class="file-name">' + file.name + '</span><span class="file-size">(' + formatFileSize(file.size) + ')</span></div><button class="file-remove" onclick="removeGroovyFileItem(this)">×</button>';
+    
+    fileItem.dataset.content = content;
+    fileList.appendChild(fileItem);
+}
+
+// 移除groovy文件项
+function removeGroovyFileItem(button) {
+    const fileItem = button.parentNode;
+    const content = fileItem.dataset.content;
+    fileItem.remove();
+    
+    // 从输入区域移除对应内容
+    const inputArea = document.getElementById('groovyInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent.includes(content)) {
+        const newContent = currentContent.replace(content, '').replace(/\r\n\n+/g, '').trim();
+        inputArea.value = newContent;
+        updateLineNumbers('groovyInput');
+    }
+}
+
+// 追加内容到groovy输入区域
+function appendToGroovyInputArea(content) {
+    const inputArea = document.getElementById('groovyInput');
+    const currentContent = inputArea.value;
+    
+    if (currentContent) {
+        inputArea.value = currentContent + '\r\n\r\n' + content;
+    } else {
+        inputArea.value = content;
+    }
+    
+    updateLineNumbers('groovyInput');
+    showNotification('文件已添加到输入区域', 'success');
+}
+
+// 检查文件类型是否有效
+function isValidFileType(file) {
+    const allowedTypes = ['.txt', '.json', '.log', '.csv', '.groovy', '.sql'];
+    const fileName = file.name.toLowerCase();
+    return allowedTypes.some(type => fileName.endsWith(type));
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 提取SQL语句的核心函数
+function extractSQL(groovyText) {
+    const sqlStatements = [];
+    
+    // 模式1：从Groovy代码中提取SQL（helper.execute("""...""")模式）
+    const executePattern = /helper\.execute\s*\(\s*"""([\s\S]*?)"""\s*\)/g;
+    
+    let match;
+    while ((match = executePattern.exec(groovyText)) !== null) {
+        const sqlContent = match[1].trim();
+        
+        // 检查SQL内容是否以DELETE或UPDATE开头
+        if (sqlContent.match(/^(DELETE|UPDATE)/i)) {
+            // 清理SQL语句：移除多余的空格和换行
+            const cleanedSQL = cleanSQL(sqlContent);
+            sqlStatements.push(cleanedSQL);
+        }
+    }
+    
+    // 模式2：直接提取纯SQL语句
+    const pureSqlPattern = /(?:^|\n)(DELETE|UPDATE)[\s\S]*?;/gmi;
+    let sqlMatch;
+    while ((sqlMatch = pureSqlPattern.exec(groovyText)) !== null) {
+        const sqlContent = sqlMatch[0].trim();
+        // 清理SQL语句
+        const cleanedSQL = cleanSQL(sqlContent);
+        sqlStatements.push(cleanedSQL);
+    }
+    
+    return sqlStatements;
+}
+
+// 清理SQL语句
+function cleanSQL(sql) {
+    // 移除多余的空格和换行，但保留基本的格式
+    return sql
+        .replace(/\r\n/g, '\n') // 统一换行符
+        .replace(/\n\s+/g, '\n') // 移除行首多余空格
+        .replace(/\s+/g, ' ') // 合并多个空格
+        .replace(/;\s*$/g, ';') // 清理结尾的分号
+        .trim();
+}
+
+// Groovy SQL提取功能
+function groovyExtractSql() {
+    const input = document.getElementById('groovyInput').value;
+    const output = document.getElementById('groovyOutput');
+    const stats = document.getElementById('groovyStats');
+    const extractBtn = document.getElementById('groovyExtract');
+    
+    if (!input.trim()) {
+        showNotification('请输入Groovy代码或SQL语句', 'warning');
+        return;
+    }
+    
+    // 显示加载状态
+    const originalText = extractBtn.textContent;
+    extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
+    extractBtn.disabled = true;
+    
+    // 使用setTimeout模拟异步操作
+    setTimeout(function() {
+        try {
+            // 使用extractSQL函数提取SQL语句
+            const sqlStatements = extractSQL(input);
+            
+            if (sqlStatements && sqlStatements.length > 0) {
+                const result = sqlStatements.join('\n\n');
+                output.value = result;
+                stats.textContent = '已提取: ' + sqlStatements.length + ' 条SQL';
+                showNotification('成功提取 ' + sqlStatements.length + ' 条SQL语句', 'success');
+                
+                // 更新输出区域的行号
+                updateLineNumbers('groovyOutput');
+            } else {
+                output.value = '';
+                stats.textContent = '已提取: 0 条SQL';
+                showNotification('未找到DELETE或UPDATE语句', 'info');
+            }
+        } catch (error) {
+            console.error('SQL提取错误:', error);
+            showNotification('提取失败，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            extractBtn.textContent = originalText;
+            extractBtn.disabled = false;
+        }
+    }, 100);
+}
+
+// 复制groovy提取结果
+function copyGroovyResult() {
+    const output = document.getElementById('groovyOutput');
+    if (!output.value) {
+        showNotification('没有内容可复制', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(output.value).then(function() {
+        showNotification('已复制到剪贴板', 'success');
+    }).catch(function(err) {
+        console.error('复制失败:', err);
+        showNotification('复制失败', 'error');
+    });
+}
+
+// 下载groovy提取结果
+function downloadGroovyResult() {
+    const output = document.getElementById('groovyOutput').value;
+    if (!output) {
+        showNotification('没有内容可下载', 'warning');
+        return;
+    }
+    
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted_sql.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification('文件已下载', 'success');
+}
+
+// 清空groovy输入
+function clearGroovyInputs() {
+    document.getElementById('groovyInput').value = '';
+    document.getElementById('groovyOutput').value = '';
+    document.getElementById('groovyFileList').innerHTML = '';
+    document.getElementById('groovyStats').textContent = '已提取: 0 条SQL';
+    document.getElementById('groovyFileInput').value = '';
+    
+    // 更新行号显示
+    updateLineNumbers('groovyInput');
+    updateLineNumbers('groovyOutput');
+    
+    showNotification('所有输入已清空', 'info');
+}
+

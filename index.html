@@ -37,6 +37,10 @@
                 <span class="icon">🔄</span>
                 批量ID替换
             </button>
+            <button id="groovySqlBtn" class="btn btn-purple">
+                <span class="icon">📄</span>
+                groovy提取sql
+            </button>
         </div>
 
         <!-- JSON格式化弹框 -->
@@ -70,6 +74,9 @@
                                 <button id="formatDownload" class="btn btn-outline">下载</button>
                             </div>
                         </div>
+                    </div>
+                    <div class="groovy-notice">
+                        <p><strong>功能说明：</strong>当前只支持提取Update和Delete语句，不支持提取Insert语句。</p>
                     </div>
                 </div>
             </div>
@@ -206,6 +213,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="groovy-notice">
+                        <p><strong>功能说明：</strong>当前只支持提取Update和Delete语句，不支持提取Insert语句。</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -250,6 +260,55 @@
                     </div>
                     <div class="id-replace-info">
                         <p><strong>功能说明：</strong>自动识别SQL语句中的ID值，并用连续的雪花ID替换它们，确保在数据库中不会重复。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- groovy提取sql弹框 -->
+        <div id="groovySqlModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>groovy提取sql</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="input-container">
+                        <div class="panel uid-input-panel">
+                            <h3>输入内容</h3>
+                            <div class="textarea-container uid-input-container">
+                                <div class="line-numbers" id="groovyInputLineNumbers"></div>
+                                <textarea id="groovyInput" placeholder="请手动输入groovy文本内容，或拖拽文件到此区域..." class="json-textarea"></textarea>
+                            </div>
+                            <div class="file-upload-area uid-file-upload-area" id="groovyFileUploadArea">
+                                <div class="upload-icon">📁</div>
+                                <p>拖拽文件到这里或点击上传</p>
+                                <input type="file" id="groovyFileInput" multiple accept=".txt,.json,.log,.csv,.groovy,.sql" style="display: none;">
+                                <button id="groovyUploadBtn" class="btn btn-outline">选择文件</button>
+                            </div>
+                            <div class="file-list" id="groovyFileList"></div>
+                            <div class="panel-actions">
+                                <button id="groovyExtract" class="btn btn-primary">提取SQL</button>
+                                <button id="groovyClear" class="btn btn-outline">清空</button>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <h3>提取结果</h3>
+                            <div class="textarea-container">
+                                <div class="line-numbers" id="groovyOutputLineNumbers"></div>
+                                <textarea id="groovyOutput" placeholder="提取的SQL语句将显示在这里..." class="json-textarea" readonly></textarea>
+                            </div>
+                            <div class="panel-actions">
+                                <button id="groovyCopy" class="btn btn-secondary">复制</button>
+                                <button id="groovyDownload" class="btn btn-outline">下载SQL</button>
+                            </div>
+                            <div class="result-stats">
+                                <p id="groovyStats">已提取: 0 条SQL</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="groovy-notice">
+                        <p><strong>功能说明：</strong>当前只支持提取Update和Delete语句，不支持提取Insert语句。</p>
                     </div>
                 </div>
             </div>
