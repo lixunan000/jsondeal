@@ -564,13 +564,19 @@ header p {
     position: relative;
     width: 100%;
     display: flex;
+    padding-left: 50px; /* 为左侧行号列预留空间 */
     border: 2px solid #e0e0e0;
     border-radius: 8px;
     overflow: hidden;
 }
 
-/* 行号样式 */
+/* 行号样式：绝对定位，不参与容器高度计算，
+   避免行数过多时把整个面板（及下方按钮）撑得很长 */
 .line-numbers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
     width: 50px;
     background: #f8f9fa;
     border-right: 1px solid #e0e0e0;

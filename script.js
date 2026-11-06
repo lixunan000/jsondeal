@@ -902,38 +902,47 @@ function loadCompareExample(exampleNum) {
 
 // 初始化行号功能
 function initializeLineNumbers() {
+    // 需要联动行号的文本区域
+    const lineNumberTextareas = [
+        'formatInput', 'formatOutput',
+        'compareInput1', 'compareInput2',
+        'uidInput', 'uidOutput',
+        'idReplaceInput', 'idReplaceOutput',
+        'groovyInput', 'groovyOutput'
+    ];
+
     // 使用事件委托，监听整个文档的输入事件
     document.addEventListener('input', function(e) {
         const target = e.target;
         const textareaId = target.id;
-        
+
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
+        if (lineNumberTextareas.includes(textareaId)) {
             updateLineNumbers(textareaId);
         }
     });
-    
+
     // 监听粘贴事件
     document.addEventListener('paste', function(e) {
         const target = e.target;
         const textareaId = target.id;
-        
+
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
+        if (lineNumberTextareas.includes(textareaId)) {
             // 使用setTimeout确保在粘贴内容后更新行号
             setTimeout(() => {
                 updateLineNumbers(textareaId);
             }, 10);
         }
     });
-    
+
     // 监听滚动事件
     document.addEventListener('scroll', function(e) {
         const target = e.target;
         const textareaId = target.id;
-        
+
         // 检查是否是目标文本区域
-        if (['formatInput', 'formatOutput', 'compareInput1', 'compareInput2', 'uidInput', 'uidOutput'].includes(textareaId)) {
+        if (lineNumberTextareas.includes(textareaId)) {
             syncLineNumbers(textareaId);
         }
     }, true); // 使用捕获阶段确保能监听到
@@ -984,10 +993,17 @@ function syncLineNumbers(textareaId) {
     const textarea = document.getElementById(textareaId);
     const lineNumbersId = textareaId + 'LineNumbers';
     const lineNumbers = document.getElementById(lineNumbersId);
-    
+
     if (!textarea || !lineNumbers) return;
-    
+
     lineNumbers.scrollTop = textarea.scrollTop;
+
+    // 同步高亮覆盖层（如JSON对比弹窗），保证高亮位置跟随文本滚动
+    const overlay = document.querySelector('#' + textareaId + ' ~ .highlight-overlay')
+        || document.getElementById(textareaId.replace('Input', 'Highlight'));
+    if (overlay) {
+        overlay.scrollTop = textarea.scrollTop;
+    }
 }
 
 // JSON断言生成功能
@@ -1061,10 +1077,7 @@ function generateAssertionsFromJson(json, path = 'resBody') {
     
     if (typeof json === 'object' && json !== null) {
         if (Array.isArray(json)) {
-            // 数组处理
-            assertions += `assert(${json.length}, ${path}.length, "断言length");\n`;
-            
-            // 数组元素断言
+            // 数组处理：不再生成 length 断言，只断言数组元素的字段值
             json.forEach((item, index) => {
                 const itemPath = `${path}[${index}]`;
                 assertions += generateAssertionsFromJson(item, itemPath);
@@ -1334,7 +1347,8 @@ function extractUIDs() {
     setTimeout(function() {
         try {
             // 使用正则表达式提取所有以UID开头的字符串
-            const uidRegex = /UID:[^\s,"'`#]+/gi;
+            // UID取值遇到空白、引号、逗号、括号、方括号、花括号、尖括号及 = @ | ; 等分隔符即结束
+            const uidRegex = /UID:[^\s,"'`#()\[\]{}<>=@|;]+/gi;
             const matches = input.match(uidRegex);
             
             if (matches && matches.length > 0) {
